@@ -415,11 +415,11 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <div class="login-card">
     <div class="login-logo">🥙</div>
     <div class="login-title">Kebab</div>
-    <div class="login-sub">員工專用系統</div>
+    <div class="login-sub">員工專用系統 · 首次登入直接輸入密碼即可設定</div>
     <label class="login-label">員工編號</label>
     <input class="login-input" type="text" id="loginInput" placeholder="輸入你的員工編號"
       onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
-    <label class="login-label">密碼</label>
+    <label class="login-label" id="loginPwdLabel">密碼</label>
     <input class="login-input" type="password" id="loginPwd" placeholder="輸入密碼"
       onkeydown="if(event.key==='Enter')doLogin()" style="margin-bottom:14px">
     <button class="login-btn" onclick="doLogin()">登入</button>
@@ -720,10 +720,13 @@ function doLogin() {
   const passwords = state.config_passwords || {};
   const myPwd = passwords[input] || '';
   if (!myPwd) {
-    // 還沒設定密碼 → 進設定密碼流程
-    _pendingLoginId = input;
-    document.getElementById('setPwdName').textContent = `歡迎，${dcName(input)}！請先設定你的密碼`;
-    document.getElementById('setPwdOverlay').style.display = 'flex';
+    // 首次登入：直接以輸入的密碼作為新密碼儲存
+    if (!pwd) { err.textContent = '首次登入，請輸入你想設定的密碼'; return; }
+    if (pwd.length < 4) { err.textContent = '密碼至少 4 個字元'; return; }
+    if (!state.config_passwords) state.config_passwords = {};
+    state.config_passwords[input] = pwd;
+    saveConfig();
+    loginSuccess(input);
     return;
   }
   if (pwd !== myPwd) { err.textContent = '密碼錯誤'; document.getElementById('loginPwd').value = ''; return; }

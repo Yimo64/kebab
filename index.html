@@ -146,6 +146,15 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 .btn-blue:hover { background: #1d6fc4; }
 
 .order-panel { position: sticky; top: 75px; }
+.lb-card { background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:16px; }
+.lb-rank { font-size:1.4rem;font-weight:800;color:var(--muted);width:32px;text-align:center;flex-shrink:0; }
+.lb-rank.gold { color:#f0c040; }
+.lb-rank.silver { color:#b0b8c8; }
+.lb-rank.bronze { color:#cd7f32; }
+.lb-name { font-size:1rem;font-weight:700;flex:1; }
+.lb-stat { text-align:center;min-width:56px; }
+.lb-stat-val { font-size:1.1rem;font-weight:700; }
+.lb-stat-lbl { font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:1px; }
 .cust-in { width: 100%; margin-bottom: 0; }
 .cust-wrap { position: relative; margin-bottom: 8px; }
 .cust-drop {
@@ -500,6 +509,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <button class="nav-tab" onclick="switchTab('board')">📋 訂單看板</button>
   <button class="nav-tab" onclick="switchTab('preorder')">📅 預定訂單</button>
   <button class="nav-tab" onclick="switchTab('acc')">💰 記帳</button>
+  <button class="nav-tab" onclick="switchTab('leaderboard')">🏆 排行榜</button>
   <button class="nav-tab" onclick="switchTab('customers')">👥 客人名單</button>
   <button class="nav-tab" id="navSettings" onclick="switchTab('settings')" style="display:none">⚙️ 設定</button>
   <div class="fb-status connecting" id="syncInfo">⟳ 連線中</div>
@@ -647,7 +657,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
       <div class="card" style="overflow-x:auto">
         <table class="acc-table">
           <thead>
-            <tr><th>#</th><th>客人</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr>
+            <tr><th>#</th><th>客人</th><th>CID</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr>
           </thead>
           <tbody id="accBody"></tbody>
         </table>
@@ -702,6 +712,18 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
     <button class="ann-modal-close" onclick="closeAnn()">✕</button>
     <div id="annModalContent"></div>
   </div>
+</div>
+
+<!-- ═══ LEADERBOARD TAB ═══ -->
+<div class="tab" id="tab-leaderboard">
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+    <div class="sec-title" style="margin-bottom:0;border:none">員工開單排行榜</div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button id="lb-btn-today" class="btn-small" onclick="setLbScope('today')" style="padding:4px 12px">今日</button>
+      <button id="lb-btn-all"   class="btn-small" onclick="setLbScope('all')"   style="padding:4px 12px">全部</button>
+    </div>
+  </div>
+  <div id="leaderboardList"></div>
 </div>
 
 <!-- ═══ CUSTOMERS TAB ═══ -->
@@ -1564,6 +1586,63 @@ function renderPOS() {
 
 function renderChange() {}
 
+// ── 排行榜
+let _lbScope = 'today';
+
+function setLbScope(scope) {
+  _lbScope = scope;
+  document.getElementById('lb-btn-today').style.background = scope==='today' ? 'var(--primary)' : 'transparent';
+  document.getElementById('lb-btn-today').style.color      = scope==='today' ? '#0b0c11' : 'var(--muted)';
+  document.getElementById('lb-btn-all').style.background   = scope==='all'   ? 'var(--primary)' : 'transparent';
+  document.getElementById('lb-btn-all').style.color        = scope==='all'   ? '#0b0c11' : 'var(--muted)';
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  const el = document.getElementById('leaderboardList');
+  if (!el) return;
+
+  const stats = {};
+  function tally(o) {
+    const who = o.createdBy || '未知';
+    if (!stats[who]) stats[who] = { total: 0, billed: 0, unbilled: 0 };
+    stats[who].total++;
+    if (o.unbilled) stats[who].unbilled++; else stats[who].billed++;
+  }
+
+  state.completed.forEach(tally);
+  if (_lbScope === 'all') {
+    (state.history || []).forEach(day => (day.completed || []).forEach(tally));
+  }
+
+  const rows = Object.entries(stats).sort((a,b) => b[1].total - a[1].total);
+  if (!rows.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">目前沒有資料</div>`;
+    return;
+  }
+  const rankClass = ['gold','silver','bronze'];
+  el.innerHTML = rows.map(([name, s], i) => {
+    const rc = rankClass[i] || '';
+    const rankLabel = i === 0 ? '1' : i === 1 ? '2' : i === 2 ? '3' : `${i+1}`;
+    return `<div class="lb-card">
+      <div class="lb-rank ${rc}">${rankLabel}</div>
+      <div class="lb-name">${name}</div>
+      <div class="lb-stat">
+        <div class="lb-stat-val" style="color:var(--green)">${s.total}</div>
+        <div class="lb-stat-lbl">總開單</div>
+      </div>
+      <div class="lb-stat">
+        <div class="lb-stat-val" style="color:var(--primary)">${s.billed}</div>
+        <div class="lb-stat-lbl">已開單</div>
+      </div>
+      <div class="lb-stat">
+        <div class="lb-stat-val" style="color:${s.unbilled > 0 ? 'var(--red)' : 'var(--muted)'}">${s.unbilled}</div>
+        <div class="lb-stat-lbl">未開單</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ── 客人名單
 let _selectedCustCid = null;
 
@@ -1931,6 +2010,7 @@ function renderAccounting() {
       return `<tr style="${o.unbilled ? 'background:rgba(232,64,64,0.06)' : ''}">
         <td class="td-gold">${o.id}${o.unbilled ? ' ⚠' : ''}</td>
         <td style="${unbilledStyle}">${o.customer || '—'}</td>
+        <td class="td-muted" style="font-family:monospace;font-size:0.7rem">${o.customerCid || '—'}</td>
         <td>${items}</td>
         <td class="td-muted">${o.note || '—'}</td>
         <td class="td-muted">${o.createdBy || '—'}</td>
@@ -1971,6 +2051,7 @@ function renderAccounting() {
       return `<tr style="${o.unbilled ? 'background:rgba(232,64,64,0.06)' : ''}">
         <td class="td-gold">${o.id}${o.unbilled ? ' ⚠' : ''}</td>
         <td ${o.unbilled ? 'style="color:#e84040;font-weight:700"' : ''}>${o.customer||'—'}</td>
+        <td class="td-muted" style="font-family:monospace;font-size:0.7rem">${o.customerCid||'—'}</td>
         <td>${items}</td>
         <td class="td-muted">${o.note||'—'}</td>
         <td class="td-muted">${o.createdBy||'—'}</td>
@@ -1997,7 +2078,7 @@ function renderAccounting() {
           ${day.topItems && day.topItems.length ? `<div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">熱賣：${day.topItems.map(([n,q])=>`${n}×${q}`).join('　')}</div>` : ''}
           <div style="overflow-x:auto">
             <table class="acc-table">
-              <thead><tr><th>#</th><th>客人</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr></thead>
+              <thead><tr><th>#</th><th>客人</th><th>CID</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr></thead>
               <tbody>${detailRows}</tbody>
             </table>
           </div>
@@ -2307,6 +2388,7 @@ function renderAll() {
   renderBulletin();
   renderBulletinSidebar();
   renderCustomerList();
+  renderLeaderboard();
   if (isAdmin()) renderAdmins();
 }
 
@@ -2329,6 +2411,7 @@ initFirebase(FIREBASE_CONFIG);
 checkDailyReset();
 renderAll();
 renderPOS();
+setLbScope('today');
 setInterval(checkDailyReset, 60000);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnn(); });
 </script>

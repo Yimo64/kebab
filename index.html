@@ -101,7 +101,7 @@ input[type=text], input[type=number], textarea, select {
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
 
 /* ── POS ── */
-.pos-layout { display: grid; grid-template-columns: 1fr 310px; gap: 16px; }
+.pos-layout { display: grid; grid-template-columns: 220px 1fr 310px; gap: 16px; }
 
 .menu-grid {
   display: grid;
@@ -273,7 +273,9 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 
 /* ── MISC ── */
 @media (max-width: 880px) {
-  .pos-layout, .acc-layout { grid-template-columns: 1fr; }
+  .pos-layout { grid-template-columns: 1fr; }
+  .pos-bulletin-col { display: none; }
+  .acc-layout { grid-template-columns: 1fr; }
   .kanban { grid-template-columns: repeat(2, 1fr); }
   .order-panel { position: static; }
 }
@@ -305,11 +307,37 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 .ann-meta  { font-size: 0.7rem; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
 .ann-actions { display: flex; gap: 6px; }
 .ann-compose { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-.ann-card.collapsed { cursor: pointer; }
-.ann-card.collapsed:hover { border-color: var(--border-hi); }
-.ann-card.collapsed .ann-body { display: none; }
-.ann-card.collapsed .ann-meta { margin-top: 4px; }
-.ann-expand-hint { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+.pos-bulletin-col { display: flex; flex-direction: column; min-width: 0; }
+.pos-bulletin-inner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; height: 100%; }
+.bull-compose { background: var(--bg-deep); border: 1px solid var(--border-hi); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.bull-card { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 7px; cursor: pointer; transition: border-color 0.13s, background 0.13s; }
+.bull-card:hover { border-color: var(--border-hi); background: #13151f; }
+.bull-card.pinned { border-left: 3px solid var(--primary); }
+.bull-card-title { font-size: 0.83rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+.bull-card-meta  { font-size: 0.65rem; color: var(--muted); margin-top: 3px; }
+.ann-card.preview { cursor: pointer; }
+.ann-card.preview:hover { border-color: var(--border-hi); background: #13151f; }
+.ann-card.preview .ann-body { display: none; }
+#annModal {
+  position: fixed; inset: 0; z-index: 9990;
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.ann-modal-card {
+  background: var(--bg-card); border: 1px solid var(--border-hi);
+  border-radius: 16px; padding: 28px; max-width: 580px; width: 100%;
+  max-height: 82vh; overflow-y: auto; position: relative;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+}
+.ann-modal-title { font-size: 1.3rem; font-weight: 800; color: var(--text); margin-bottom: 14px; line-height: 1.4; }
+.ann-modal-body  { font-size: 0.9rem; color: #c0c4d8; line-height: 1.75; white-space: pre-wrap; }
+.ann-modal-close {
+  position: absolute; top: 14px; right: 16px;
+  background: transparent; border: none; color: var(--muted);
+  font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 4px 8px;
+  border-radius: 6px;
+}
+.ann-modal-close:hover { color: var(--text); background: var(--border); }
 
 /* ── PREORDER TAB ── */
 .preorder-list-card {
@@ -478,6 +506,28 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 <!-- ═══ POS TAB ═══ -->
 <div class="tab active" id="tab-pos">
   <div class="pos-layout">
+    <!-- 公告側欄 -->
+    <div class="pos-bulletin-col">
+      <div class="pos-bulletin-inner">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sec-title" style="margin-bottom:0;border:none">📢 公告</div>
+          <button id="posBullBtn" class="btn-small btn-amber" style="padding:3px 9px;font-size:0.75rem" onclick="togglePosBullCompose()">＋</button>
+        </div>
+        <div id="posBullCompose" style="display:none" class="bull-compose">
+          <input type="text" id="posBullTitle" placeholder="公告標題" style="width:100%;margin-bottom:6px;font-size:0.82rem">
+          <textarea id="posBullBody" placeholder="內容（選填）…" style="width:100%;height:60px;resize:vertical;font-size:0.82rem;margin-bottom:6px"></textarea>
+          <label style="display:flex;align-items:center;gap:5px;font-size:0.75rem;color:var(--muted);margin-bottom:8px;cursor:pointer">
+            <input type="checkbox" id="posBullPinned" style="accent-color:var(--primary)"> 📌 置頂
+          </label>
+          <div style="display:flex;gap:6px">
+            <button class="btn-small btn-green" onclick="postBulletinSidebar()">發布</button>
+            <button class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="togglePosBullCompose()">取消</button>
+          </div>
+        </div>
+        <div id="bulletinSidebar" style="overflow-y:auto;flex:1"></div>
+      </div>
+    </div>
+    <!-- 選品項 -->
     <div>
       <div class="sec-title">選擇品項</div>
       <div class="menu-grid" id="menuGrid"></div>
@@ -495,12 +545,17 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
         <div style="margin-bottom:8px">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--muted);margin-bottom:6px">
             <input type="checkbox" id="posIsPreorder" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer"
-              onchange="document.getElementById('preorderTimeRow').style.display=this.checked?'flex':'none'">
+              onchange="document.getElementById('preorderTimeRow').style.display=this.checked?'flex':'none';if(this.checked)initSchedSelects()">
             📅 預定訂單
           </label>
-          <div id="preorderTimeRow" style="display:none;gap:8px;align-items:center">
-            <input type="datetime-local" id="posScheduledAt"
-              style="flex:1;font-size:0.82rem;color:var(--text);border-color:var(--blue)">
+          <div id="preorderTimeRow" style="display:none;gap:5px;align-items:center;flex-wrap:wrap">
+            <select id="posSched_m" onchange="updateSchedDays()" style="background:var(--bg-deep);border:1px solid var(--blue);border-radius:7px;color:var(--blue);padding:5px 8px;font-size:0.82rem;font-weight:600;cursor:pointer"></select>
+            <span style="color:var(--muted);font-size:0.8rem">月</span>
+            <select id="posSched_d" style="background:var(--bg-deep);border:1px solid var(--blue);border-radius:7px;color:var(--blue);padding:5px 8px;font-size:0.82rem;font-weight:600;cursor:pointer"></select>
+            <span style="color:var(--muted);font-size:0.8rem">日</span>
+            <select id="posSched_h" style="background:var(--bg-deep);border:1px solid var(--blue);border-radius:7px;color:var(--blue);padding:5px 8px;font-size:0.82rem;font-weight:600;cursor:pointer"></select>
+            <span style="color:var(--muted);font-size:0.8rem">:</span>
+            <select id="posSched_min" style="background:var(--bg-deep);border:1px solid var(--blue);border-radius:7px;color:var(--blue);padding:5px 8px;font-size:0.82rem;font-weight:600;cursor:pointer"></select>
           </div>
         </div>
         <div class="order-items" id="posItems"><div class="empty-hint">尚未點餐</div></div>
@@ -583,11 +638,8 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 
 <!-- ═══ PREORDER TAB ═══ -->
 <div class="tab" id="tab-preorder">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+  <div style="margin-bottom:14px">
     <div class="sec-title" style="margin-bottom:0;border:none">預定訂單</div>
-    <label style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:6px">
-      <input type="checkbox" id="preorderShowDone" style="accent-color:var(--primary)" onchange="renderPreorder()"> 顯示已取餐
-    </label>
   </div>
   <div id="preorderList"></div>
 </div>
@@ -647,6 +699,14 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
     <button id="annNewBtn" class="btn-small btn-amber" style="display:none" onclick="document.getElementById('annCompose').style.display='block';this.style.display='none'">＋ 新增公告</button>
   </div>
   <div id="bulletinList"></div>
+</div>
+
+<!-- ═══ ANN MODAL ═══ -->
+<div id="annModal" onclick="if(event.target===this)closeAnn()">
+  <div class="ann-modal-card">
+    <button class="ann-modal-close" onclick="closeAnn()">✕</button>
+    <div id="annModalContent"></div>
+  </div>
 </div>
 
 <!-- ═══ SETTINGS TAB ═══ -->
@@ -986,6 +1046,7 @@ function initFirebase(cfg) {
         ? Object.values(snap.val()).sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0) || b.createdAt-a.createdAt)
         : [];
       renderBulletin();
+      renderBulletinSidebar();
     });
 
     // 歷史記錄
@@ -1059,41 +1120,99 @@ function changePassword() {
 }
 
 // ── 公告板
-const _expandedAnns = new Set();
+function openAnn(id) {
+  const a = (state.announcements || []).find(a => a.id === id);
+  if (!a) return;
+  const timeStr = new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('annModalContent').innerHTML = `
+    ${a.pinned ? `<div style="margin-bottom:10px"><span class="ann-badge badge-pin">📌 置頂</span></div>` : ''}
+    <div class="ann-modal-title">${a.title}</div>
+    ${a.content ? `<div class="ann-modal-body">${a.content}</div>` : ''}
+    <div class="ann-meta" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <span>👤 ${a.author} · ${timeStr}</span>
+      <div style="display:flex;gap:6px">
+        <button onclick="togglePin('${a.id}');closeAnn()" class="btn-small" style="background:transparent;border:1px solid var(--border);color:${a.pinned?'var(--primary)':'var(--muted)'};padding:3px 10px;font-size:0.7rem">${a.pinned?'取消置頂':'置頂'}</button>
+        <button onclick="deleteAnn('${a.id}');closeAnn()" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 10px;font-size:0.7rem">刪除</button>
+      </div>
+    </div>`;
+  const modal = document.getElementById('annModal');
+  modal.style.display = 'flex';
+}
 
-function toggleAnn(id) {
-  if (_expandedAnns.has(id)) _expandedAnns.delete(id);
-  else _expandedAnns.add(id);
-  renderBulletin();
+function closeAnn() {
+  document.getElementById('annModal').style.display = 'none';
 }
 
 function renderBulletin() {
   const anns = state.announcements || [];
-  const admin = isAdmin();
-  if (admin) document.getElementById('annNewBtn').style.display = '';
+  document.getElementById('annNewBtn').style.display = '';
 
   document.getElementById('bulletinList').innerHTML = anns.length === 0
     ? `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">目前沒有公告</div>`
     : anns.map(a => {
-        const expanded = a.pinned || _expandedAnns.has(a.id);
-        const collapsedClass = expanded ? '' : 'collapsed';
-        const clickAttr = expanded ? '' : `onclick="toggleAnn('${a.id}')"`;
-        return `
-      <div class="ann-card ${a.pinned?'pinned':''} ${collapsedClass}" ${clickAttr}>
-        ${a.pinned ? `<div style="margin-bottom:6px"><span class="ann-badge badge-pin">📌 置頂</span></div>` : ''}
-        <div class="ann-title">${a.title}</div>
-        <div class="ann-body">${a.content}</div>
-        ${!expanded ? `<div class="ann-expand-hint">▼ 點擊展開</div>` : ''}
-        <div class="ann-meta">
-          <span>👤 ${a.author} · ${new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-          <div style="display:flex;gap:6px;align-items:center">
-            ${expanded && !a.pinned ? `<button onclick="event.stopPropagation();toggleAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 8px;font-size:0.7rem">▲ 收起</button>` : ''}
-            ${admin ? `<button onclick="event.stopPropagation();togglePin('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:${a.pinned?'var(--primary)':'var(--muted)'};padding:3px 8px;font-size:0.7rem">${a.pinned?'取消置頂':'置頂'}</button>
-            <button onclick="event.stopPropagation();deleteAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 8px;font-size:0.7rem">刪除</button>` : ''}
+        const timeStr = new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        if (a.pinned) {
+          return `<div class="ann-card pinned">
+            <div style="margin-bottom:6px"><span class="ann-badge badge-pin">📌 置頂</span></div>
+            <div class="ann-title">${a.title}</div>
+            <div class="ann-body">${a.content}</div>
+            <div class="ann-meta" style="margin-top:10px">
+              <span>👤 ${a.author} · ${timeStr}</span>
+              <div style="display:flex;gap:6px">
+                <button onclick="togglePin('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--primary);padding:3px 8px;font-size:0.7rem">取消置頂</button>
+                <button onclick="deleteAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 8px;font-size:0.7rem">刪除</button>
+              </div>
+            </div>
+          </div>`;
+        }
+        return `<div class="ann-card preview" onclick="openAnn('${a.id}')">
+          <div class="ann-title">${a.title}</div>
+          <div class="ann-meta" style="margin-top:6px">
+            <span>👤 ${a.author} · ${timeStr}</span>
+            <span style="font-size:0.7rem;color:var(--muted)">點擊查看 ›</span>
           </div>
-        </div>
-      </div>`;
+        </div>`;
       }).join('');
+}
+
+function renderBulletinSidebar() {
+  const el = document.getElementById('bulletinSidebar');
+  if (!el) return;
+  const anns = state.announcements || [];
+  if (anns.length === 0) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:20px 0">目前沒有公告</div>`;
+    return;
+  }
+  el.innerHTML = anns.map(a => {
+    const timeStr = new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    return `<div class="bull-card ${a.pinned?'pinned':''}" onclick="openAnn('${a.id}')">
+      <div class="bull-card-title">${a.pinned?'📌 ':''}${a.title}</div>
+      <div class="bull-card-meta">👤 ${a.author} · ${timeStr}</div>
+    </div>`;
+  }).join('');
+}
+
+function togglePosBullCompose() {
+  const el = document.getElementById('posBullCompose');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function postBulletinSidebar() {
+  const title = document.getElementById('posBullTitle').value.trim();
+  if (!title) return;
+  const id = 'ann_' + Date.now();
+  const ann = {
+    id, title,
+    content: document.getElementById('posBullBody').value.trim(),
+    pinned:  document.getElementById('posBullPinned').checked,
+    author:  dcName(myId()),
+    createdAt: Date.now(),
+  };
+  if (db) db.ref('kebab/announcements/' + id).set(ann).catch(fbErr);
+  document.getElementById('posBullTitle').value = '';
+  document.getElementById('posBullBody').value = '';
+  document.getElementById('posBullPinned').checked = false;
+  togglePosBullCompose();
 }
 
 function postAnnouncement() {
@@ -1406,6 +1525,49 @@ function renderPOS() {
 
 function renderChange() {}
 
+function initSchedSelects() {
+  const now = new Date();
+  const def = new Date(now.getTime() + 60 * 60000);
+  def.setMinutes(Math.ceil(def.getMinutes() / 5) * 5, 0, 0);
+  if (def.getMinutes() >= 60) { def.setHours(def.getHours() + 1); def.setMinutes(0); }
+
+  document.getElementById('posSched_m').innerHTML =
+    Array.from({length:12}, (_,i) =>
+      `<option value="${i+1}" ${i+1===def.getMonth()+1?'selected':''}>${i+1}</option>`
+    ).join('');
+  updateSchedDays(def.getDate());
+  document.getElementById('posSched_h').innerHTML =
+    Array.from({length:24}, (_,i) =>
+      `<option value="${i}" ${i===def.getHours()?'selected':''}>${String(i).padStart(2,'0')}</option>`
+    ).join('');
+  const roundMin = Math.round(def.getMinutes() / 5) * 5 % 60;
+  document.getElementById('posSched_min').innerHTML =
+    Array.from({length:12}, (_,i) =>
+      `<option value="${i*5}" ${i*5===roundMin?'selected':''}>${String(i*5).padStart(2,'0')}</option>`
+    ).join('');
+}
+
+function updateSchedDays(selectDay) {
+  const m = parseInt(document.getElementById('posSched_m').value);
+  const days = new Date(new Date().getFullYear(), m, 0).getDate();
+  const cur = selectDay || parseInt(document.getElementById('posSched_d').value) || 1;
+  document.getElementById('posSched_d').innerHTML =
+    Array.from({length:days}, (_,i) =>
+      `<option value="${i+1}" ${i+1===cur?'selected':''}>${i+1}</option>`
+    ).join('');
+}
+
+function getScheduledAt() {
+  const m   = parseInt(document.getElementById('posSched_m').value);
+  const d   = parseInt(document.getElementById('posSched_d').value);
+  const h   = parseInt(document.getElementById('posSched_h').value);
+  const min = parseInt(document.getElementById('posSched_min').value);
+  const y   = new Date().getFullYear();
+  const dt  = new Date(y, m - 1, d, h, min, 0, 0);
+  if (dt < new Date()) dt.setFullYear(y + 1);
+  return dt.getTime();
+}
+
 function clearPOS() {
   posCart = [];
   document.getElementById('posCustomer').value = '';
@@ -1413,7 +1575,6 @@ function clearPOS() {
   document.getElementById('posBilled').checked = false;
   document.getElementById('posIsPreorder').checked = false;
   document.getElementById('preorderTimeRow').style.display = 'none';
-  document.getElementById('posScheduledAt').value = '';
   document.getElementById('posDiscount').value = '0';
   document.getElementById('discPreview').textContent = '';
   document.getElementById('posFoldInput').value = '';
@@ -1428,7 +1589,7 @@ function createOrder() {
   const userNote  = document.getElementById('posNote').value.trim();
   const customer  = document.getElementById('posCustomer').value.trim();
   const isPreorder = document.getElementById('posIsPreorder').checked;
-  const scheduledAt = isPreorder ? new Date(document.getElementById('posScheduledAt').value).getTime() : null;
+  const scheduledAt = isPreorder ? getScheduledAt() : null;
   const snapshot  = {
     note:       billed ? userNote : ('⚠️ 未開單' + (userNote ? '｜' + userNote : '')),
     unbilled:   !billed,
@@ -1498,6 +1659,7 @@ function renderBoard() {
   const groups = { waiting: [], preparing: [], ready: [], done: [] };
 
   state.orders.forEach(o => {
+    if (o.isPreorder && o.status === 'waiting') return; // 預定單等按「開始製作」才進看板
     if (search && !o.id.toLowerCase().includes(search) && !(o.customer||'').toLowerCase().includes(search)) return;
     if (groups[o.status]) groups[o.status].push(o);
   });
@@ -1986,13 +2148,9 @@ function renderStats() {
 // ════════════════════════════════════════
 
 function renderPreorder() {
-  const showDone = document.getElementById('preorderShowDone')?.checked;
-  const statusLabel = { waiting:'⏳ 等待中', preparing:'🔥 製作中', ready:'✅ 完成', done:'📦 已取餐' };
-  const statusBadge = { waiting:'psb-waiting', preparing:'psb-preparing', ready:'psb-ready', done:'psb-done' };
-
-  let orders = (state.orders || []).filter(o => o.isPreorder);
-  if (!showDone) orders = orders.filter(o => o.status !== 'done');
-  orders.sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
+  const orders = (state.orders || [])
+    .filter(o => o.isPreorder && o.status === 'waiting')
+    .sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
 
   const el = document.getElementById('preorderList');
   if (!el) return;
@@ -2005,25 +2163,18 @@ function renderPreorder() {
       ? new Date(o.scheduledAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
       : '未指定時間';
     const itemsTxt = o.items.map(i=>`${i.name}×${i.qty}`).join('、');
-    let actions = '';
-    if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
-    if (o.status === 'preparing') actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','ready')">完成製作</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','waiting')">退回等待</button>`;
-    if (o.status === 'ready')     actions = `<button class="oc-btn ob-done" onclick="moveOrder('${o.id}','done')">確認取餐</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','preparing')">退回製作</button>`;
-    if (o.status === 'done')      actions = `<button class="oc-btn ob-prev" style="background:#21262d;color:#8b949e" onclick="moveOrder('${o.id}','ready')">退回完成</button>`;
-    return `<div class="preorder-list-card status-${o.status}">
-      <div class="preorder-sched">📅 ${schedTime}
-        <span class="preorder-status-badge ${statusBadge[o.status]}">${statusLabel[o.status]}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+    return `<div class="preorder-list-card status-waiting">
+      <div class="preorder-sched">📅 ${schedTime}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div>
           <span style="font-weight:700;font-size:0.95rem">${o.customer || o.id}</span>
-          <span style="font-size:0.75rem;color:var(--muted);margin-left:8px">${o.id}</span>
+          <span style="font-size:0.72rem;color:var(--muted);margin-left:8px">${o.id}</span>
         </div>
         <div style="font-weight:700;color:var(--primary)">$${o.total}${o.discount>0?` (-$${o.discount})`:''}</div>
       </div>
-      <div class="oc-items" style="margin-bottom:6px">${itemsTxt}</div>
-      ${o.note ? `<div class="oc-note" style="margin-bottom:6px">📝 ${o.note}</div>` : ''}
-      <div class="oc-actions">${actions}</div>
+      <div class="oc-items" style="margin-bottom:8px">${itemsTxt}</div>
+      ${o.note ? `<div class="oc-note" style="margin-bottom:8px">📝 ${o.note}</div>` : ''}
+      <button class="oc-btn ob-next" style="width:100%" onclick="moveOrder('${o.id}','preparing');switchTab('board')">開始製作 →</button>
     </div>`;
   }).join('');
 }
@@ -2038,6 +2189,7 @@ function renderAll() {
   renderAccounting();
   renderInventory();
   renderBulletin();
+  renderBulletinSidebar();
   if (isAdmin()) renderAdmins();
 }
 
@@ -2061,6 +2213,7 @@ checkDailyReset();
 renderAll();
 renderPOS();
 setInterval(checkDailyReset, 60000);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnn(); });
 </script>
 </body>
 </html>

@@ -1911,6 +1911,7 @@ function orderCard(o) {
     <div class="oc-top">
       <span class="oc-id">${o.customer || o.id}${o.isPreorder?`<span class="preorder-badge">📅 預定</span>`:''}</span>
       <span class="oc-cust">${o.id}</span>
+      ${o.customerCid ? `<span style="font-size:0.65rem;color:var(--muted);font-family:monospace;display:block;margin-top:1px">${o.customerCid}</span>` : ''}
       <span class="oc-time">${time}</span>
     </div>
     ${o.isPreorder && o.scheduledAt ? `<div class="preorder-time">📅 預定時間：${new Date(o.scheduledAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}

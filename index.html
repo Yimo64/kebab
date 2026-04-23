@@ -503,7 +503,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
       <div class="card" style="overflow-x:auto">
         <table class="acc-table">
           <thead>
-            <tr><th>#</th><th>客人</th><th>品項</th><th>備注</th><th>金額</th><th>時間</th></tr>
+            <tr><th>#</th><th>客人</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr>
           </thead>
           <tbody id="accBody"></tbody>
         </table>
@@ -596,6 +596,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 // ════════════════════════════════════════
 
 const ALLOWED_IDS = new Set([
+  '163128886782197761',
   '214035802177536001',
   '640484620785418240',
   '175657389461078016',
@@ -604,6 +605,19 @@ const ALLOWED_IDS = new Set([
   '326257870377320450',
   '486880096066600982',
 ]);
+
+const DC_NAMES = {
+  '163128886782197761': '簍予安',
+  '214035802177536001': '南零',
+  '640484620785418240': '孫宜廷',
+  '175657389461078016': '花小唯',
+  '1137100994518454343': '黎子漫',
+  '325582420650885120': '簍心月',
+  '326257870377320450': '簍樂澄',
+  '486880096066600982': '阿倍嗨嗨',
+};
+
+function dcName(id) { return DC_NAMES[id] || id; }
 
 function doLogin() {
   const input = document.getElementById('loginInput').value.trim();
@@ -616,7 +630,7 @@ function doLogin() {
   }
   localStorage.setItem('gem_auth', input);
   document.getElementById('loginOverlay').style.display = 'none';
-  document.getElementById('userIdDisplay').textContent = input.slice(0,6) + '…';
+  document.getElementById('userIdDisplay').textContent = dcName(input);
   updateNavVisibility();
 }
 
@@ -630,7 +644,7 @@ function doLogout() {
   const stored = localStorage.getItem('gem_auth');
   if (stored && ALLOWED_IDS.has(stored)) {
     document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userIdDisplay').textContent = stored.slice(0,6) + '…';
+    document.getElementById('userIdDisplay').textContent = dcName(stored);
   }
 })();
 
@@ -910,7 +924,7 @@ function renderAdmins() {
     ? '<div style="color:var(--muted);font-size:0.82rem">尚無管理員</div>'
     : entries.map(id => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.84rem">
-          <span style="font-family:monospace;color:var(--text)">${id}</span>
+          <span style="color:var(--text)">${dcName(id)} <span style="color:var(--muted);font-size:0.72rem;font-family:monospace">${id}</span></span>
           <button onclick="removeAdmin('${id}')"
             style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);border-radius:5px;padding:2px 9px;font-size:0.72rem;cursor:pointer">
             移除</button>
@@ -920,7 +934,7 @@ function renderAdmins() {
   const sel = document.getElementById('adminAddSelect');
   const candidates = [...ALLOWED_IDS].filter(id => !admins[id]);
   sel.innerHTML = '<option value="">選擇要授予管理員的帳號…</option>' +
-    candidates.map(id => `<option value="${id}">${id}</option>`).join('');
+    candidates.map(id => `<option value="${id}">${dcName(id)}</option>`).join('');
 }
 
 function addAdmin() {
@@ -1101,13 +1115,14 @@ function createOrder() {
   const userNote  = document.getElementById('posNote').value.trim();
   const customer  = document.getElementById('posCustomer').value.trim();
   const snapshot  = {
-    note:     billed ? userNote : ('⚠️ 未開單' + (userNote ? '｜' + userNote : '')),
-    unbilled: !billed,
-    items:    JSON.parse(JSON.stringify(posCart)),
-    total:    getTotal(),
-    discount: getDiscount(),
+    note:      billed ? userNote : ('⚠️ 未開單' + (userNote ? '｜' + userNote : '')),
+    unbilled:  !billed,
+    items:     JSON.parse(JSON.stringify(posCart)),
+    total:     getTotal(),
+    discount:  getDiscount(),
     customer,
-    status:   'waiting',
+    createdBy: dcName(myId()),
+    status:    'waiting',
     createdAt: Date.now(),
   };
 
@@ -1184,21 +1199,24 @@ function renderBoard() {
 function orderCard(o) {
   const time = new Date(o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
   const items = o.items.map(i => `${i.name}×${i.qty}`).join('、');
-  const unbilledBadge = o.unbilled ? `<span style="background:#b62324;color:#fff;font-size:0.65rem;font-weight:bold;padding:1px 6px;border-radius:4px;margin-left:4px">未開單</span>` : '';
   let actions = '';
   if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
   if (o.status === 'preparing') actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','ready')">完成製作</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','waiting')">退回等待</button>`;
   if (o.status === 'ready')     actions = `<button class="oc-btn ob-done" onclick="moveOrder('${o.id}','done')">確認取餐</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','preparing')">退回製作</button>`;
   if (o.status === 'done')      actions = `<button class="oc-btn ob-prev" style="background:#21262d;color:#8b949e" onclick="moveOrder('${o.id}','ready')">退回完成</button>`;
-  return `<div class="oc">
+  return `<div class="oc" style="${o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)' : ''}">
+    ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;text-align:center">⚠ 未開單</div>` : ''}
     <div class="oc-top">
-      <span class="oc-id">${o.customer || o.id}${unbilledBadge}</span>
+      <span class="oc-id">${o.customer || o.id}</span>
       <span class="oc-cust">${o.id}</span>
       <span class="oc-time">${time}</span>
     </div>
     <div class="oc-items">${items}</div>
     ${o.note ? `<div class="oc-note">📝 ${o.note}</div>` : ''}
-    <div class="oc-total">$${o.total}${o.discount>0?` (-$${o.discount})`:''}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="oc-total" style="margin-bottom:0">$${o.total}${o.discount>0?` (-$${o.discount})`:''}</div>
+      ${o.createdBy ? `<span style="font-size:0.68rem;color:var(--muted)">👤 ${o.createdBy}</span>` : ''}
+    </div>
     <div class="oc-actions">${actions}</div>
   </div>`;
 }
@@ -1255,16 +1273,18 @@ function renderAccounting() {
   // 今日訂單
   const tbody = document.getElementById('accBody');
   if (state.completed.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="acc-empty">今日尚無結帳記錄</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="acc-empty">今日尚無結帳記錄</td></tr>`;
   } else {
     tbody.innerHTML = state.completed.map(o => {
       const t = new Date(o.completedAt || o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
       const items = o.items.map(i => `${i.name}×${i.qty}`).join('、');
-      return `<tr>
-        <td class="td-gold">${o.id}</td>
-        <td>${o.customer || '—'}</td>
+      const unbilledStyle = o.unbilled ? 'color:#e84040;font-weight:700' : '';
+      return `<tr style="${o.unbilled ? 'background:rgba(232,64,64,0.06)' : ''}">
+        <td class="td-gold">${o.id}${o.unbilled ? ' ⚠' : ''}</td>
+        <td style="${unbilledStyle}">${o.customer || '—'}</td>
         <td>${items}</td>
         <td class="td-muted">${o.note || '—'}</td>
+        <td class="td-muted">${o.createdBy || '—'}</td>
         <td class="td-gold">$${o.total}</td>
         <td class="td-muted">${t}</td>
       </tr>`;
@@ -1299,11 +1319,12 @@ function renderAccounting() {
     const detailRows = isOpen ? day.completed.map(o => {
       const t = new Date(o.completedAt || o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
       const items = o.items.map(it => `${it.name}×${it.qty}`).join('、');
-      return `<tr>
-        <td class="td-gold">${o.id}</td>
-        <td>${o.customer||'—'}</td>
+      return `<tr style="${o.unbilled ? 'background:rgba(232,64,64,0.06)' : ''}">
+        <td class="td-gold">${o.id}${o.unbilled ? ' ⚠' : ''}</td>
+        <td ${o.unbilled ? 'style="color:#e84040;font-weight:700"' : ''}>${o.customer||'—'}</td>
         <td>${items}</td>
         <td class="td-muted">${o.note||'—'}</td>
+        <td class="td-muted">${o.createdBy||'—'}</td>
         <td class="td-gold">$${o.total}</td>
         <td class="td-muted">${t}</td>
       </tr>`;
@@ -1327,7 +1348,7 @@ function renderAccounting() {
           ${day.topItems && day.topItems.length ? `<div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">熱賣：${day.topItems.map(([n,q])=>`${n}×${q}`).join('　')}</div>` : ''}
           <div style="overflow-x:auto">
             <table class="acc-table">
-              <thead><tr><th>#</th><th>客人</th><th>品項</th><th>備注</th><th>金額</th><th>時間</th></tr></thead>
+              <thead><tr><th>#</th><th>客人</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr></thead>
               <tbody>${detailRows}</tbody>
             </table>
           </div>

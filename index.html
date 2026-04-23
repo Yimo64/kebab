@@ -687,16 +687,7 @@ const DEFAULT_INGREDIENTS = [
   { id: 'tomato',   name: '番茄',          unit: '份', stock: 30, minStock: 15, restockQty: 30, unitCost: 10 },
   { id: 'onion',    name: '洋蔥',          unit: '份', stock: 30, minStock: 15, restockQty: 30, unitCost: 10 },
   { id: 'pickle',   name: '酸黃瓜',        unit: '份', stock: 30, minStock: 15, restockQty: 30, unitCost: 10 },
-  // 飲料
-  { id: 'sparkling', name: '氣泡水',      unit: '瓶', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'yakult',   name: '養樂多',        unit: '瓶', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'oj',       name: '柳橙汁',        unit: '杯', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'greentea', name: '綠茶',          unit: '杯', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'milktea',  name: '奶茶',          unit: '杯', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'lemontea', name: '檸檬茶',        unit: '杯', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'coffee',   name: '咖啡',          unit: '杯', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'sports',   name: '運動飲料',      unit: '瓶', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
-  { id: 'energy',   name: '能量飲料',      unit: '罐', stock: 15, minStock: 8, restockQty: 24, unitCost: 0 },
+  // 飲料不追蹤存貨（移除）
 ];
 
 // 肉串 1 串切 4 份 → 每份 0.25；薯條 1 份炸 5 份 → 每份 0.2
@@ -711,15 +702,6 @@ const DEFAULT_RECIPES = {
   '沙威瑪捲餅':    [{ id:'wrap', amount:1 }, { id:'meat', amount:0.25 }, ...SHAWARMA_FILLINGS],
   '炸薯條':        [{ id:'fries', amount:0.25 }],
   '炸鷹嘴豆餅':    [{ id:'falafel', amount:0.25 }],
-  '氣泡水':        [{ id:'sparkling', amount:1 }],
-  '養樂多':        [{ id:'yakult', amount:1 }],
-  '柳橙汁':        [{ id:'oj', amount:1 }],
-  '綠茶':          [{ id:'greentea', amount:1 }],
-  '奶茶':          [{ id:'milktea', amount:1 }],
-  '檸檬茶':        [{ id:'lemontea', amount:1 }],
-  '咖啡':          [{ id:'coffee', amount:1 }],
-  '運動飲料':      [{ id:'sports', amount:1 }],
-  '能量飲料':      [{ id:'energy', amount:1 }],
   '套餐(餅+炸物)': [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, { id:'fries', amount:0.25 }, ...SHAWARMA_FILLINGS],
 };
 
@@ -808,6 +790,7 @@ function initFirebase(cfg) {
         cacheLocal();
         renderMenuGrid(); renderMenuEditor(); renderInventory();
         renderAdmins(); updateNavVisibility();
+        // 食譜 UI 只在設定頁主動切換時刷新，避免 Firebase 同步重置下拉選單
       }
     }, () => setSyncStatus('error'));
 
@@ -968,6 +951,7 @@ function switchTab(id) {
   document.getElementById('tab-' + id).classList.add('active');
   event.currentTarget.classList.add('active');
   renderAll();
+  if (id === 'settings') renderRecipes();
 }
 
 // ════════════════════════════════════════
@@ -1495,7 +1479,6 @@ function renderInventory() {
     </tr>`;
   }).join('');
 
-  renderRecipes();
 }
 
 function updateIng(i, field, val) {

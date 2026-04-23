@@ -709,8 +709,8 @@ const SHAWARMA_FILLINGS = [
 const DEFAULT_RECIPES = {
   'PITA餅沙威瑪':  [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, ...SHAWARMA_FILLINGS],
   '沙威瑪捲餅':    [{ id:'wrap', amount:1 }, { id:'meat', amount:0.25 }, ...SHAWARMA_FILLINGS],
-  '炸薯條':        [{ id:'fries', amount:0.2 }],
-  '炸鷹嘴豆餅':    [{ id:'falafel', amount:1 }],
+  '炸薯條':        [{ id:'fries', amount:0.25 }],
+  '炸鷹嘴豆餅':    [{ id:'falafel', amount:0.25 }],
   '氣泡水':        [{ id:'sparkling', amount:1 }],
   '養樂多':        [{ id:'yakult', amount:1 }],
   '柳橙汁':        [{ id:'oj', amount:1 }],
@@ -720,7 +720,7 @@ const DEFAULT_RECIPES = {
   '咖啡':          [{ id:'coffee', amount:1 }],
   '運動飲料':      [{ id:'sports', amount:1 }],
   '能量飲料':      [{ id:'energy', amount:1 }],
-  '套餐(餅+炸物)': [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, { id:'fries', amount:0.2 }, ...SHAWARMA_FILLINGS],
+  '套餐(餅+炸物)': [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, { id:'fries', amount:0.25 }, ...SHAWARMA_FILLINGS],
 };
 
 // ════════════════════════════════════════
@@ -1539,38 +1539,46 @@ function restockAll() {
 }
 
 function renderRecipes() {
-  document.getElementById('recipeList').innerHTML = state.menu.map(item => {
+  const ingOptions = state.ingredients.map(i =>
+    `<option value="${i.id}">${i.name}</option>`
+  ).join('');
+
+  document.getElementById('recipeList').innerHTML = state.menu.map((item, idx) => {
     const recipe = state.recipes[item.name] || [];
-    const tags = recipe.map(r => {
+    const tags = recipe.map((r, ri) => {
       const ing = state.ingredients.find(i => i.id === r.id);
-      return `<span class="rc-ing-tag">${ing ? ing.name : r.id} ×${r.amount}</span>`;
+      return `<span class="rc-ing-tag" style="cursor:pointer" onclick="removeRecipeIng('${item.name}',${ri})" title="點擊移除">
+        ${ing ? ing.name : r.id} ×${r.amount} ✕</span>`;
     }).join('');
-    const ingOptions = state.ingredients.map(i =>
-      `<option value="${i.id}">${i.name}</option>`
-    ).join('');
     return `<div class="recipe-card">
       <div class="rc-name">${item.name}</div>
-      <div class="rc-ings">${tags || '<span style="color:#555;font-size:0.72rem">尚未設定食譜</span>'}</div>
+      <div class="rc-ings" style="margin-bottom:6px">${tags || '<span style="color:#555;font-size:0.72rem">尚未設定食材</span>'}</div>
       <div class="recipe-edit-row">
-        <select id="rs-ing-${item.name.replace(/[^a-zA-Z0-9]/g,'_')}">${ingOptions}</select>
-        <input type="number" id="rs-amt-${item.name.replace(/[^a-zA-Z0-9]/g,'_')}" value="1" min="1" style="width:50px">
-        <button class="btn-small btn-green" onclick="addRecipeIng('${item.name}')">＋</button>
-        <button class="btn-small" style="background:#21262d;color:#8b949e" onclick="clearRecipe('${item.name}')">清空</button>
+        <select id="rs-ing-${idx}">${ingOptions}</select>
+        <input type="number" id="rs-amt-${idx}" value="1" min="0.01" step="0.01" style="width:60px" placeholder="份量">
+        <button class="btn-small btn-green" onclick="addRecipeIng('${item.name}',${idx})">＋加入</button>
+        <button class="btn-small" style="background:transparent;border:1px solid #444;color:#666" onclick="clearRecipe('${item.name}')">清空</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function addRecipeIng(menuName) {
-  const key = menuName.replace(/[^a-zA-Z0-9]/g,'_');
-  const sel = document.getElementById('rs-ing-' + key);
-  const amt = parseInt(document.getElementById('rs-amt-' + key).value) || 1;
-  if (!sel) return;
+function addRecipeIng(menuName, idx) {
+  const sel = document.getElementById('rs-ing-' + idx);
+  const amt = parseFloat(document.getElementById('rs-amt-' + idx).value);
+  if (!sel || !amt || amt <= 0) return;
   const ingId = sel.value;
   if (!state.recipes[menuName]) state.recipes[menuName] = [];
   const ex = state.recipes[menuName].find(r => r.id === ingId);
-  if (ex) ex.amount += amt;
+  if (ex) ex.amount = Math.round((ex.amount + amt) * 1000) / 1000;
   else state.recipes[menuName].push({ id: ingId, amount: amt });
+  broadcast();
+  renderRecipes();
+}
+
+function removeRecipeIng(menuName, ri) {
+  if (!state.recipes[menuName]) return;
+  state.recipes[menuName].splice(ri, 1);
   broadcast();
   renderRecipes();
 }

@@ -1182,20 +1182,46 @@ function renderBoard() {
 
 function orderCard(o) {
   const time = new Date(o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-  const items = o.items.map(i => `${i.name}×${i.qty}`).join('、');
+  const checked = new Set(o.checkedItems || []);
+  const showChecklist = o.status === 'preparing' || o.status === 'ready';
+  const allChecked = showChecklist && o.items.every((_, i) => checked.has(i));
+
+  // 品項顯示：製作中/完成用勾選清單，其他用文字
+  let itemsHtml;
+  if (showChecklist) {
+    itemsHtml = `<div style="margin-bottom:6px">` +
+      o.items.map((item, i) => {
+        const done = checked.has(i);
+        return `<label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;user-select:none">
+          <input type="checkbox" id="cb-${o.id}-${i}" ${done ? 'checked' : ''}
+            style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0"
+            onchange="toggleItemCheck('${o.id}',${i})">
+          <span id="ci-${o.id}-${i}" style="font-size:0.82rem;${done ? 'text-decoration:line-through;color:var(--muted)' : 'color:#c0c4d8'}">${item.name} ×${item.qty}</span>
+        </label>`;
+      }).join('') +
+      `</div>`;
+  } else {
+    itemsHtml = `<div class="oc-items">${o.items.map(i=>`${i.name}×${i.qty}`).join('、')}</div>`;
+  }
+
+  let borderStyle = o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)'
+    : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)' : '';
+
   let actions = '';
   if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
   if (o.status === 'preparing') actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','ready')">完成製作</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','waiting')">退回等待</button>`;
   if (o.status === 'ready')     actions = `<button class="oc-btn ob-done" onclick="moveOrder('${o.id}','done')">確認取餐</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','preparing')">退回製作</button>`;
   if (o.status === 'done')      actions = `<button class="oc-btn ob-prev" style="background:#21262d;color:#8b949e" onclick="moveOrder('${o.id}','ready')">退回完成</button>`;
-  return `<div class="oc" style="${o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)' : ''}">
+
+  return `<div class="oc" id="card-${o.id}" style="${borderStyle}">
     ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;text-align:center">⚠ 未開單</div>` : ''}
+    ${allChecked ? `<div id="all-done-${o.id}" style="background:rgba(61,186,110,0.15);color:var(--green);font-size:0.7rem;font-weight:700;padding:3px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;text-align:center;letter-spacing:1px">✓ 全部備妥</div>` : `<div id="all-done-${o.id}" style="display:none"></div>`}
     <div class="oc-top">
       <span class="oc-id">${o.customer || o.id}</span>
       <span class="oc-cust">${o.id}</span>
       <span class="oc-time">${time}</span>
     </div>
-    <div class="oc-items">${items}</div>
+    ${itemsHtml}
     ${o.note ? `<div class="oc-note">📝 ${o.note}</div>` : ''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div class="oc-total" style="margin-bottom:0">$${o.total}${o.discount>0?` (-$${o.discount})`:''}</div>
@@ -1203,6 +1229,31 @@ function orderCard(o) {
     </div>
     <div class="oc-actions">${actions}</div>
   </div>`;
+}
+
+function toggleItemCheck(orderId, itemIdx) {
+  const o = state.orders.find(o => o.id === orderId);
+  if (!o) return;
+  if (!o.checkedItems) o.checkedItems = [];
+  const pos = o.checkedItems.indexOf(itemIdx);
+  if (pos >= 0) o.checkedItems.splice(pos, 1);
+  else o.checkedItems.push(itemIdx);
+
+  // 即時更新視覺，不重繪整個看板
+  const checked = new Set(o.checkedItems);
+  o.items.forEach((_, i) => {
+    const cb = document.getElementById(`cb-${orderId}-${i}`);
+    const ci = document.getElementById(`ci-${orderId}-${i}`);
+    if (cb) cb.checked = checked.has(i);
+    if (ci) { ci.style.textDecoration = checked.has(i) ? 'line-through' : 'none'; ci.style.color = checked.has(i) ? 'var(--muted)' : '#c0c4d8'; }
+  });
+  const allDone = o.items.every((_, i) => checked.has(i));
+  const banner = document.getElementById(`all-done-${orderId}`);
+  const card   = document.getElementById(`card-${orderId}`);
+  if (banner) { banner.style.display = allDone ? 'block' : 'none'; banner.textContent = '✓ 全部備妥'; }
+  if (card)   { card.style.borderColor = allDone ? 'var(--green)' : (o.unbilled ? '#e84040' : ''); card.style.boxShadow = allDone ? '0 0 8px rgba(61,186,110,0.25)' : (o.unbilled ? '0 0 8px rgba(232,64,64,0.3)' : ''); }
+
+  saveOrder(o);
 }
 
 function moveOrder(id, newStatus) {

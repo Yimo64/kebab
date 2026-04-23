@@ -645,6 +645,9 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
           <select id="resetPwdSelect" style="flex:1"></select>
           <button class="btn-small" style="background:#7a1a1a;color:#ffaaaa;border:none" onclick="resetUserPwd()">清除密碼</button>
         </div>
+        <div style="margin-top:8px">
+          <button class="btn-small" style="background:#4a1a1a;color:#ffaaaa;border:1px solid #7a1a1a;width:100%" onclick="resetAllPwds()">⚠ 清除所有人密碼（全員重設）</button>
+        </div>
         <div id="pwdMsg" style="font-size:0.78rem;margin-top:8px;min-height:16px"></div>
       </div>
     </div>
@@ -1193,6 +1196,14 @@ function resetUserPwd() {
   saveConfig();
   const msg = document.getElementById('pwdMsg');
   msg.style.color = 'var(--green)'; msg.textContent = `${dcName(id)} 的密碼已清除 ✓`;
+}
+
+function resetAllPwds() {
+  if (!confirm('確定清除所有人的密碼？所有員工下次登入時都需要重新設定密碼。')) return;
+  state.config_passwords = {};
+  saveConfig();
+  const msg = document.getElementById('pwdMsg');
+  msg.style.color = 'var(--green)'; msg.textContent = '全員密碼已清除，下次登入時各自設定 ✓';
 }
 
 // 舊函式向後相容

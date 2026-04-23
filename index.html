@@ -146,7 +146,22 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 .btn-blue:hover { background: #1d6fc4; }
 
 .order-panel { position: sticky; top: 75px; }
-.cust-in { width: 100%; margin-bottom: 8px; }
+.cust-in { width: 100%; margin-bottom: 0; }
+.cust-wrap { position: relative; margin-bottom: 8px; }
+.cust-drop {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 60;
+  background: var(--bg-card); border: 1px solid var(--border-hi);
+  border-radius: 8px; max-height: 180px; overflow-y: auto;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5); display: none;
+}
+.cust-drop-item {
+  padding: 8px 12px; cursor: pointer; font-size: 0.84rem;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.cust-drop-item:hover { background: var(--border); }
+.cust-drop-cid { font-size: 0.65rem; color: var(--muted); font-family: monospace; }
+.cust-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
+.cust-row:last-child { border-bottom: none; }
 .note-in { width: 100%; resize: none; height: 50px; margin-bottom: 8px; font-size: 0.78rem; }
 .order-items { min-height: 50px; margin-bottom: 10px; }
 .oi-row {
@@ -515,7 +530,11 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
     <div>
       <div class="card order-panel">
         <div class="sec-title">目前訂單</div>
-        <input type="text" id="posCustomer" placeholder="客人名稱（可留空）" class="cust-in">
+        <div class="cust-wrap">
+          <input type="text" id="posCustomer" placeholder="搜尋客人名稱或 CID…" class="cust-in"
+            oninput="filterCustomers()" onblur="setTimeout(hideCustDrop,150)" autocomplete="off">
+          <div class="cust-drop" id="custDrop"></div>
+        </div>
         <textarea id="posNote" class="note-in" placeholder="備注（加料、特殊需求…）"></textarea>
         <div style="margin-bottom:8px">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--muted);margin-bottom:6px">
@@ -686,6 +705,17 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 
 <!-- ═══ SETTINGS TAB ═══ -->
 <div class="tab" id="tab-settings">
+
+  <!-- 客人名單 -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="sec-title">客人名單</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <input type="text" id="newCustCid" placeholder="客人 CID" style="flex:2;min-width:160px">
+      <input type="text" id="newCustName" placeholder="客人名稱" style="flex:1;min-width:100px">
+      <button class="btn-small btn-green" onclick="addCustomer()">新增</button>
+    </div>
+    <div id="customerList"></div>
+  </div>
 
   <!-- 管理員限定區塊 -->
   <div id="settingsAdminSection">
@@ -1015,6 +1045,12 @@ function initFirebase(cfg) {
       }
     }, () => setSyncStatus('error'));
 
+    // 客人名單
+    db.ref('kebab/customers').on('value', snap => {
+      state.customers = snap.val() || {};
+      renderCustomerList();
+    });
+
     // 公告板
     db.ref('kebab/announcements').on('value', snap => {
       state.announcements = snap.val()
@@ -1277,6 +1313,7 @@ function loadState() {
     managers: {},
     config_passwords: {},
     config_password: '',
+    customers: {},
     menu:        JSON.parse(JSON.stringify(DEFAULT_MENU)),
     ingredients: JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS)),
     recipes:     JSON.parse(JSON.stringify(DEFAULT_RECIPES)),
@@ -1523,6 +1560,82 @@ function renderPOS() {
 
 function renderChange() {}
 
+// ── 客人名單
+let _selectedCustCid = null;
+
+function filterCustomers() {
+  const q = (document.getElementById('posCustomer').value || '').trim().toLowerCase();
+  _selectedCustCid = null;
+  const drop = document.getElementById('custDrop');
+  if (!q) { drop.style.display = 'none'; return; }
+  const custs = Object.values(state.customers || {});
+  const matches = custs.filter(c =>
+    c.name.toLowerCase().includes(q) || c.cid.toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.map(c => `
+    <div class="cust-drop-item" onmousedown="selectCustomer('${c.cid}','${c.name.replace(/'/g,"\\'")}')">
+      <span>${c.name}</span>
+      <span class="cust-drop-cid">${c.cid}</span>
+    </div>`).join('');
+  drop.style.display = 'block';
+}
+
+function selectCustomer(cid, name) {
+  document.getElementById('posCustomer').value = name;
+  _selectedCustCid = cid;
+  document.getElementById('custDrop').style.display = 'none';
+}
+
+function hideCustDrop() {
+  const drop = document.getElementById('custDrop');
+  if (drop) drop.style.display = 'none';
+}
+
+function addCustomer() {
+  const cid  = document.getElementById('newCustCid').value.trim();
+  const name = document.getElementById('newCustName').value.trim();
+  if (!cid || !name) return;
+  if (db) db.ref('kebab/customers/' + cid).set({ cid, name }).catch(fbErr);
+  else state.customers[cid] = { cid, name };
+  document.getElementById('newCustCid').value = '';
+  document.getElementById('newCustName').value = '';
+}
+
+function deleteCustomer(cid) {
+  if (!confirm(`確定刪除客人「${(state.customers[cid]||{}).name || cid}」？`)) return;
+  if (db) db.ref('kebab/customers/' + cid).remove().catch(fbErr);
+  else { delete state.customers[cid]; renderCustomerList(); }
+}
+
+function editCustomerName(cid) {
+  const cur = (state.customers[cid] || {}).name || '';
+  const name = prompt('修改客人名稱', cur);
+  if (!name || !name.trim()) return;
+  if (db) db.ref('kebab/customers/' + cid + '/name').set(name.trim()).catch(fbErr);
+}
+
+function renderCustomerList() {
+  const el = document.getElementById('customerList');
+  if (!el) return;
+  const custs = Object.values(state.customers || {}).sort((a,b) => a.name.localeCompare(b.name,'zh-TW'));
+  if (!custs.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">尚未新增任何客人</div>`;
+    return;
+  }
+  el.innerHTML = custs.map(c => `
+    <div class="cust-row">
+      <div>
+        <span style="font-weight:600">${c.name}</span>
+        <span style="font-size:0.68rem;color:var(--muted);margin-left:8px;font-family:monospace">${c.cid}</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:2px 8px;font-size:0.7rem" onclick="editCustomerName('${c.cid}')">改名</button>
+        <button class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:2px 8px;font-size:0.7rem" onclick="deleteCustomer('${c.cid}')">刪除</button>
+      </div>
+    </div>`).join('');
+}
+
 function initSchedSelects() {
   const now = new Date();
   const def = new Date(now.getTime() + 60 * 60000);
@@ -1569,6 +1682,8 @@ function getScheduledAt() {
 function clearPOS() {
   posCart = [];
   document.getElementById('posCustomer').value = '';
+  _selectedCustCid = null;
+  hideCustDrop();
   document.getElementById('posNote').value = '';
   document.getElementById('posBilled').checked = false;
   document.getElementById('posIsPreorder').checked = false;
@@ -1595,6 +1710,7 @@ function createOrder() {
     total:      getTotal(),
     discount:   getDiscount(),
     customer,
+    customerCid: _selectedCustCid || null,
     createdBy:  dcName(myId()),
     isPreorder: !!isPreorder,
     scheduledAt: scheduledAt || null,
@@ -2186,6 +2302,7 @@ function renderAll() {
   renderInventory();
   renderBulletin();
   renderBulletinSidebar();
+  renderCustomerList();
   if (isAdmin()) renderAdmins();
 }
 

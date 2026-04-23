@@ -500,6 +500,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <button class="nav-tab" onclick="switchTab('board')">📋 訂單看板</button>
   <button class="nav-tab" onclick="switchTab('preorder')">📅 預定訂單</button>
   <button class="nav-tab" onclick="switchTab('acc')">💰 記帳</button>
+  <button class="nav-tab" onclick="switchTab('customers')">👥 客人名單</button>
   <button class="nav-tab" id="navSettings" onclick="switchTab('settings')" style="display:none">⚙️ 設定</button>
   <div class="fb-status connecting" id="syncInfo">⟳ 連線中</div>
   <div class="login-user-badge" id="userBadge" onclick="doLogout()" title="點擊登出">
@@ -703,19 +704,22 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
-<!-- ═══ SETTINGS TAB ═══ -->
-<div class="tab" id="tab-settings">
-
-  <!-- 客人名單 -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="sec-title">客人名單</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+<!-- ═══ CUSTOMERS TAB ═══ -->
+<div class="tab" id="tab-customers">
+  <div class="card" style="max-width:640px">
+    <div class="sec-title">新增客人</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <input type="text" id="newCustCid" placeholder="客人 CID" style="flex:2;min-width:160px">
       <input type="text" id="newCustName" placeholder="客人名稱" style="flex:1;min-width:100px">
       <button class="btn-small btn-green" onclick="addCustomer()">新增</button>
     </div>
+    <div class="sec-title">名單</div>
     <div id="customerList"></div>
   </div>
+</div>
+
+<!-- ═══ SETTINGS TAB ═══ -->
+<div class="tab" id="tab-settings">
 
   <!-- 管理員限定區塊 -->
   <div id="settingsAdminSection">

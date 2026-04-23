@@ -284,6 +284,36 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 .mt12 { margin-top: 12px; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
 
+/* ── BULLETIN BOARD ── */
+.ann-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px; margin-bottom: 10px;
+  transition: border-color 0.13s;
+}
+.ann-card.pinned { border-color: var(--primary); }
+.ann-card.urgent { border-color: var(--red); background: rgba(232,64,64,0.04); }
+.ann-badge {
+  display: inline-block; font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; margin-right: 6px; letter-spacing: 0.5px;
+}
+.badge-urgent  { background: rgba(232,64,64,0.2);  color: var(--red); }
+.badge-pin     { background: rgba(232,145,58,0.2); color: var(--primary); }
+.badge-general { background: rgba(255,255,255,0.07); color: var(--muted); }
+.badge-event   { background: rgba(74,158,255,0.2); color: var(--blue); }
+.ann-title { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.ann-body  { font-size: 0.84rem; color: #c0c4d8; line-height: 1.6; white-space: pre-wrap; }
+.ann-meta  { font-size: 0.7rem; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+.ann-actions { display: flex; gap: 6px; }
+.ann-compose { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+
+/* ── PRE-ORDER ── */
+.preorder-badge {
+  display: inline-block; background: rgba(74,158,255,0.15); color: var(--blue);
+  font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  border: 1px solid rgba(74,158,255,0.3); margin-left: 4px;
+}
+.preorder-time { font-size: 0.7rem; color: var(--blue); margin-top: 2px; }
+
 /* ── FIREBASE SETUP ── */
 #fbSetupOverlay {
   position: fixed; inset: 0; z-index: 9998;
@@ -363,15 +393,35 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
+<!-- SET PASSWORD OVERLAY -->
+<div id="setPwdOverlay" style="position:fixed;inset:0;z-index:9998;background:var(--bg);display:none;align-items:center;justify-content:center">
+  <div class="login-card">
+    <div class="login-logo">🔑</div>
+    <div class="login-title" style="font-size:1rem">設定你的密碼</div>
+    <div class="login-sub" id="setPwdName"></div>
+    <label class="login-label">設定密碼</label>
+    <input class="login-input" type="password" id="setPwd1" placeholder="輸入新密碼"
+      onkeydown="if(event.key==='Enter')document.getElementById('setPwd2').focus()">
+    <label class="login-label">再次確認</label>
+    <input class="login-input" type="password" id="setPwd2" placeholder="再次輸入"
+      onkeydown="if(event.key==='Enter')confirmSetPwd()" style="margin-bottom:14px">
+    <button class="login-btn" onclick="confirmSetPwd()">確認設定</button>
+    <div class="login-err" id="setPwdErr"></div>
+  </div>
+</div>
+
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
   <div class="login-card">
     <div class="login-logo">🥙</div>
     <div class="login-title">Kebab</div>
-    <div class="login-sub">員工專用系統・請輸入 Discord ID 登入</div>
-    <label class="login-label">Discord ID</label>
-    <input class="login-input" type="text" id="loginInput" placeholder="例：123456789012345678"
-      onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-sub">員工專用系統</div>
+    <label class="login-label">員工編號</label>
+    <input class="login-input" type="text" id="loginInput" placeholder="輸入你的員工編號"
+      onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+    <label class="login-label">密碼</label>
+    <input class="login-input" type="password" id="loginPwd" placeholder="輸入密碼"
+      onkeydown="if(event.key==='Enter')doLogin()" style="margin-bottom:14px">
     <button class="login-btn" onclick="doLogin()">登入</button>
     <div class="login-err" id="loginErr"></div>
   </div>
@@ -383,7 +433,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <button class="nav-tab active" onclick="switchTab('pos')">🛒 收銀台</button>
   <button class="nav-tab" onclick="switchTab('board')">📋 訂單看板</button>
   <button class="nav-tab" onclick="switchTab('acc')">💰 記帳</button>
-  <button class="nav-tab" onclick="switchTab('inv')">📦 補貨</button>
+  <button class="nav-tab" onclick="switchTab('bulletin')">📢 公告板</button>
   <button class="nav-tab" id="navSettings" onclick="switchTab('settings')" style="display:none">⚙️ 設定</button>
   <div class="fb-status connecting" id="syncInfo">⟳ 連線中</div>
   <div class="login-user-badge" id="userBadge" onclick="doLogout()" title="點擊登出">
@@ -417,6 +467,17 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
         <div class="sec-title">目前訂單</div>
         <input type="text" id="posCustomer" placeholder="客人名稱（可留空）" class="cust-in">
         <textarea id="posNote" class="note-in" placeholder="備注（加料、特殊需求…）"></textarea>
+        <div style="margin-bottom:8px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--muted);margin-bottom:6px">
+            <input type="checkbox" id="posIsPreorder" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer"
+              onchange="document.getElementById('preorderTimeRow').style.display=this.checked?'flex':'none'">
+            📅 預定訂單
+          </label>
+          <div id="preorderTimeRow" style="display:none;gap:8px;align-items:center">
+            <input type="datetime-local" id="posScheduledAt"
+              style="flex:1;font-size:0.82rem;color:var(--text);border-color:var(--blue)">
+          </div>
+        </div>
         <div class="order-items" id="posItems"><div class="empty-hint">尚未點餐</div></div>
         <sep></sep>
         <div style="margin-bottom:8px">
@@ -527,49 +588,76 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
-<!-- ═══ INVENTORY TAB ═══ -->
-<div class="tab" id="tab-inv">
-  <div class="inv-layout">
-    <div>
-      <!-- Restock alerts -->
-      <div id="restockAlertBox"></div>
-
-      <!-- Ingredient table -->
-      <div class="sec-title">食材庫存</div>
-      <div class="card" style="overflow-x:auto">
-        <table class="inv-table">
-          <thead>
-            <tr><th>食材</th><th>單位</th><th>目前存貨</th><th>最低存量</th><th>補貨數量</th><th>補貨單價</th><th>狀態</th><th></th></tr>
-          </thead>
-          <tbody id="invBody"></tbody>
-        </table>
-      </div>
+<!-- ═══ BULLETIN TAB ═══ -->
+<div class="tab" id="tab-bulletin">
+  <!-- 新增公告（管理員） -->
+  <div class="ann-compose" id="annCompose" style="display:none">
+    <div class="sec-title">新增公告</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <select id="annCategory" style="flex:1;min-width:120px">
+        <option value="general">💬 一般</option>
+        <option value="urgent">🚨 緊急</option>
+        <option value="event">📅 活動</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="annPinned" style="accent-color:var(--primary)"> 📌 置頂
+      </label>
     </div>
-    <div><!-- spacer --></div>
+    <input type="text" id="annTitle" placeholder="公告標題" style="width:100%;margin-bottom:8px">
+    <textarea id="annBody" placeholder="公告內容…" style="width:100%;height:80px;resize:vertical;margin-bottom:8px"></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn-small btn-green" onclick="postAnnouncement()">發布</button>
+      <button class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="document.getElementById('annCompose').style.display='none'">取消</button>
+    </div>
   </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div class="sec-title" style="margin-bottom:0;border:none">公告板</div>
+    <button id="annNewBtn" class="btn-small btn-amber" style="display:none" onclick="document.getElementById('annCompose').style.display='block';this.style.display='none'">＋ 新增公告</button>
+  </div>
+  <div id="bulletinList"></div>
 </div>
 
 <!-- ═══ SETTINGS TAB ═══ -->
 <div class="tab" id="tab-settings">
-  <!-- 管理員設定 -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="sec-title">管理員設定</div>
-    <div id="adminList" style="margin-bottom:12px"></div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <select id="adminAddSelect" style="flex:1;min-width:200px">
-        <option value="">選擇要授予管理員的帳號…</option>
-      </select>
-      <button class="btn-small btn-green" onclick="addAdmin()">授予管理員</button>
+
+  <!-- 管理員限定區塊 -->
+  <div id="settingsAdminSection">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <!-- 人員權限 -->
+      <div class="card">
+        <div class="sec-title">人員權限設定</div>
+        <div id="adminList" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="adminAddSelect" style="flex:1;min-width:160px"></select>
+          <select id="roleSelect" style="width:90px">
+            <option value="admin">管理員</option>
+            <option value="manager">店長</option>
+          </select>
+          <button class="btn-small btn-green" onclick="addAdmin()">授予</button>
+        </div>
+      </div>
+      <!-- 重置密碼 -->
+      <div class="card" id="settingsPasswordSection">
+        <div class="sec-title">重置員工密碼</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">可清除某人的密碼，讓他下次登入時重新設定</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="resetPwdSelect" style="flex:1"></select>
+          <button class="btn-small" style="background:#7a1a1a;color:#ffaaaa;border:none" onclick="resetUserPwd()">清除密碼</button>
+        </div>
+        <div id="pwdMsg" style="font-size:0.78rem;margin-top:8px;min-height:16px"></div>
+      </div>
     </div>
+
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <!-- 菜單設定 -->
+
+  <!-- 菜單 + 食材 + 食譜（店長 + 管理員） -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0">
     <div class="card">
       <div class="sec-title">菜單品項設定</div>
       <div id="menuEditor"></div>
       <button class="btn-small btn-green mt8" onclick="addMenuRow()">＋ 新增品項</button>
     </div>
-    <!-- 食材設定 -->
     <div class="card">
       <div class="sec-title">食材設定</div>
       <div class="add-ing-row" style="margin-bottom:10px">
@@ -581,12 +669,14 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
         <input type="number" id="newIngCost" placeholder="單價$" min="0" style="width:65px">
         <button class="btn-small btn-green" onclick="addIngredient()">新增</button>
       </div>
-      <div class="sec-title mt8">食譜設定（每品項用料）</div>
-      <div id="recipeList"></div>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #21262d">
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
         <button class="btn-small" style="background:transparent;border:1px solid #555;color:#8b949e;font-size:0.75rem" onclick="resetIngredients()">↺ 重置食材與食譜到預設值</button>
       </div>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="sec-title">食譜設定（每品項用料）</div>
+    <div id="recipeList"></div>
   </div>
 </div>
 
@@ -619,34 +709,70 @@ const DC_NAMES = {
 
 function dcName(id) { return DC_NAMES[id] || id; }
 
+let _pendingLoginId = null; // 等待設定密碼的 ID
+
 function doLogin() {
   const input = document.getElementById('loginInput').value.trim();
+  const pwd   = document.getElementById('loginPwd').value;
   const err   = document.getElementById('loginErr');
-  if (!input) { err.textContent = '請輸入 Discord ID'; return; }
-  if (!ALLOWED_IDS.has(input)) {
-    err.textContent = '此 ID 沒有存取權限';
-    document.getElementById('loginInput').value = '';
+  if (!input) { err.textContent = '請輸入員工編號'; return; }
+  if (!ALLOWED_IDS.has(input)) { err.textContent = '員工編號不存在'; document.getElementById('loginInput').value = ''; return; }
+  const passwords = state.config_passwords || {};
+  const myPwd = passwords[input] || '';
+  if (!myPwd) {
+    // 還沒設定密碼 → 進設定密碼流程
+    _pendingLoginId = input;
+    document.getElementById('setPwdName').textContent = `歡迎，${dcName(input)}！請先設定你的密碼`;
+    document.getElementById('setPwdOverlay').style.display = 'flex';
     return;
   }
-  localStorage.setItem('gem_auth', input);
+  if (pwd !== myPwd) { err.textContent = '密碼錯誤'; document.getElementById('loginPwd').value = ''; return; }
+  loginSuccess(input);
+}
+
+function confirmSetPwd() {
+  const p1 = document.getElementById('setPwd1').value;
+  const p2 = document.getElementById('setPwd2').value;
+  const err = document.getElementById('setPwdErr');
+  if (!p1 || p1.length < 4) { err.textContent = '密碼至少 4 個字元'; return; }
+  if (p1 !== p2) { err.textContent = '兩次輸入不一致'; return; }
+  if (!state.config_passwords) state.config_passwords = {};
+  state.config_passwords[_pendingLoginId] = p1;
+  saveConfig();
+  document.getElementById('setPwdOverlay').style.display = 'none';
+  document.getElementById('setPwd1').value = '';
+  document.getElementById('setPwd2').value = '';
+  loginSuccess(_pendingLoginId);
+  _pendingLoginId = null;
+}
+
+function loginSuccess(id) {
+  localStorage.setItem('gem_auth', id);
+  sessionStorage.setItem('gem_verified', '1');
   document.getElementById('loginOverlay').style.display = 'none';
-  document.getElementById('userIdDisplay').textContent = dcName(input);
+  document.getElementById('userIdDisplay').textContent = dcName(id);
   updateNavVisibility();
 }
 
 function doLogout() {
   if (!confirm('確定登出？')) return;
   localStorage.removeItem('gem_auth');
+  sessionStorage.removeItem('gem_verified');
   location.reload();
 }
 
-(function checkAuth() {
-  const stored = localStorage.getItem('gem_auth');
-  if (stored && ALLOWED_IDS.has(stored)) {
+function tryAutoLogin() {
+  const id = localStorage.getItem('gem_auth');
+  const ok = sessionStorage.getItem('gem_verified');
+  if (!id || !ALLOWED_IDS.has(id)) return;
+  const myPwd = (state.config_passwords || {})[id] || '';
+  if (ok || !myPwd) {
+    sessionStorage.setItem('gem_verified', '1');
     document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userIdDisplay').textContent = dcName(stored);
+    document.getElementById('userIdDisplay').textContent = dcName(id);
+    updateNavVisibility();
   }
-})();
+}
 
 // ════════════════════════════════════════
 // DEFAULT DATA
@@ -781,9 +907,14 @@ function initFirebase(cfg) {
         state.admins      = d.admins      || state.admins;
         state.lastResetDate = d.lastResetDate || state.lastResetDate;
       }
+      if (d) {
+        if (d.managers)  state.managers          = d.managers;
+        if (d.passwords) state.config_passwords  = d.passwords;
+      }
       if (!configReady) {
         configReady = true;
         setSyncStatus('connected');
+        tryAutoLogin();
         checkDailyReset();
         renderAll();
       } else {
@@ -793,6 +924,14 @@ function initFirebase(cfg) {
         // 食譜 UI 只在設定頁主動切換時刷新，避免 Firebase 同步重置下拉選單
       }
     }, () => setSyncStatus('error'));
+
+    // 公告板
+    db.ref('kebab/announcements').on('value', snap => {
+      state.announcements = snap.val()
+        ? Object.values(snap.val()).sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0) || b.createdAt-a.createdAt)
+        : [];
+      renderBulletin();
+    });
 
     // 歷史記錄
     R.history().on('value', snap => {
@@ -845,8 +984,84 @@ function saveConfig() {
   if (db) R.config().set({
     menu: state.menu, ingredients: state.ingredients,
     recipes: state.recipes, admins: state.admins,
+    managers: state.managers || {},
+    passwords: state.config_passwords || {},
     lastResetDate: state.lastResetDate,
   }).catch(fbErr);
+}
+
+function changePassword() {
+  const p1 = document.getElementById('newPwdInput').value;
+  const p2 = document.getElementById('newPwdConfirm').value;
+  const msg = document.getElementById('pwdMsg');
+  if (!p1) { msg.style.color='var(--red)'; msg.textContent='密碼不能為空'; return; }
+  if (p1 !== p2) { msg.style.color='var(--red)'; msg.textContent='兩次輸入不一致'; return; }
+  state.config_password = p1;
+  saveConfig();
+  msg.style.color='var(--green)'; msg.textContent='密碼已更新 ✓';
+  document.getElementById('newPwdInput').value = '';
+  document.getElementById('newPwdConfirm').value = '';
+}
+
+// ── 公告板
+function renderBulletin() {
+  const anns = state.announcements || [];
+  const admin = isAdmin();
+  if (admin) {
+    document.getElementById('annNewBtn').style.display = '';
+  }
+  const catMap = { urgent:'🚨 緊急', event:'📅 活動', general:'💬 一般' };
+  const badgeMap = { urgent:'badge-urgent', event:'badge-event', general:'badge-general' };
+  document.getElementById('bulletinList').innerHTML = anns.length === 0
+    ? `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">目前沒有公告</div>`
+    : anns.map(a => `
+      <div class="ann-card ${a.pinned?'pinned':''} ${a.category==='urgent'?'urgent':''}">
+        <div style="margin-bottom:6px">
+          ${a.pinned?`<span class="ann-badge badge-pin">📌 置頂</span>`:''}
+          <span class="ann-badge ${badgeMap[a.category]||'badge-general'}">${catMap[a.category]||'💬 一般'}</span>
+        </div>
+        <div class="ann-title">${a.title}</div>
+        <div class="ann-body">${a.content}</div>
+        <div class="ann-meta">
+          <span>👤 ${a.author} · ${new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+          ${admin ? `<div class="ann-actions">
+            <button onclick="togglePin('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:${a.pinned?'var(--primary)':'var(--muted)'};padding:3px 8px;font-size:0.7rem">${a.pinned?'取消置頂':'置頂'}</button>
+            <button onclick="deleteAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 8px;font-size:0.7rem">刪除</button>
+          </div>` : ''}
+        </div>
+      </div>`).join('');
+}
+
+function postAnnouncement() {
+  const title   = document.getElementById('annTitle').value.trim();
+  const content = document.getElementById('annBody').value.trim();
+  if (!title) return;
+  const id = 'ann_' + Date.now();
+  const ann = {
+    id, title, content,
+    category: document.getElementById('annCategory').value,
+    pinned:   document.getElementById('annPinned').checked,
+    author:   dcName(myId()),
+    createdAt: Date.now(),
+  };
+  if (db) db.ref('kebab/announcements/' + id).set(ann).catch(fbErr);
+  document.getElementById('annTitle').value = '';
+  document.getElementById('annBody').value = '';
+  document.getElementById('annPinned').checked = false;
+  document.getElementById('annCompose').style.display = 'none';
+  document.getElementById('annNewBtn').style.display = '';
+}
+
+function togglePin(id) {
+  const ann = (state.announcements||[]).find(a=>a.id===id);
+  if (!ann) return;
+  ann.pinned = !ann.pinned;
+  if (db) db.ref('kebab/announcements/' + id + '/pinned').set(ann.pinned).catch(fbErr);
+}
+
+function deleteAnn(id) {
+  if (!confirm('確定刪除此公告？')) return;
+  if (db) db.ref('kebab/announcements/' + id).remove().catch(fbErr);
 }
 function saveHistoryDay(day) {
   if (db) R.histDay(day.date).set(day).catch(fbErr);
@@ -878,7 +1093,10 @@ function loadState() {
   return {
     orders: [], completed: [], history: [],
     lastResetDate: getGameDay(), nextId: 1,
-    admins: { '326257870377320450': true },
+    admins:   { '326257870377320450': true },
+    managers: {},
+    config_passwords: {},
+    config_password: '',
     menu:        JSON.parse(JSON.stringify(DEFAULT_MENU)),
     ingredients: JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS)),
     recipes:     JSON.parse(JSON.stringify(DEFAULT_RECIPES)),
@@ -892,54 +1110,91 @@ let posCart = [];
 // ADMIN
 // ════════════════════════════════════════
 
-function myId() { return localStorage.getItem('gem_auth') || ''; }
-function isAdmin() { return !!(state.admins && state.admins[myId()]); }
+function myId()      { return localStorage.getItem('gem_auth') || ''; }
+function isAdmin()   { return !!(state.admins   && state.admins[myId()]); }
+function isManager() { return !!(state.managers && state.managers[myId()]); }
+function canEditMenu() { return isAdmin() || isManager(); }
 
 function updateNavVisibility() {
-  document.getElementById('navSettings').style.display = isAdmin() ? '' : 'none';
+  const showSettings = isAdmin() || isManager();
+  document.getElementById('navSettings').style.display = showSettings ? '' : 'none';
+  // 設定頁各區塊的顯示
+  const el = document.getElementById('settingsAdminSection');
+  if (el) el.style.display = isAdmin() ? '' : 'none';
 }
 
 function renderAdmins() {
-  const admins = state.admins || {};
+  const admins   = state.admins   || {};
+  const managers = state.managers || {};
   const list = document.getElementById('adminList');
-  const entries = Object.keys(admins).filter(id => admins[id]);
-  list.innerHTML = entries.length === 0
-    ? '<div style="color:var(--muted);font-size:0.82rem">尚無管理員</div>'
-    : entries.map(id => `
+  const roleLabel = id => admins[id] ? '<span style="color:var(--primary);font-size:0.7rem;background:rgba(232,145,58,0.15);padding:1px 7px;border-radius:10px">管理員</span>'
+    : managers[id] ? '<span style="color:var(--blue);font-size:0.7rem;background:rgba(74,158,255,0.15);padding:1px 7px;border-radius:10px">店長</span>' : '';
+  const allPrivileged = [...new Set([
+    ...Object.keys(admins).filter(id=>admins[id]),
+    ...Object.keys(managers).filter(id=>managers[id]),
+  ])];
+  list.innerHTML = allPrivileged.length === 0
+    ? '<div style="color:var(--muted);font-size:0.82rem">尚無特殊權限帳號</div>'
+    : allPrivileged.map(id => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.84rem">
-          <span style="color:var(--text)">${dcName(id)} <span style="color:var(--muted);font-size:0.72rem;font-family:monospace">${id}</span></span>
-          <button onclick="removeAdmin('${id}')"
-            style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);border-radius:5px;padding:2px 9px;font-size:0.72rem;cursor:pointer">
-            移除</button>
+          <span style="display:flex;align-items:center;gap:8px;color:var(--text)">${dcName(id)} ${roleLabel(id)}</span>
+          <button onclick="removePrivilege('${id}')"
+            style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);border-radius:5px;padding:2px 9px;font-size:0.72rem;cursor:pointer">移除</button>
         </div>`).join('');
 
-  // 填入下拉選單（白名單內、非管理員）
+  const taken = new Set(allPrivileged);
+  const candidates = [...ALLOWED_IDS].filter(id => !taken.has(id));
   const sel = document.getElementById('adminAddSelect');
-  const candidates = [...ALLOWED_IDS].filter(id => !admins[id]);
-  sel.innerHTML = '<option value="">選擇要授予管理員的帳號…</option>' +
-    candidates.map(id => `<option value="${id}">${dcName(id)}</option>`).join('');
+  if (sel) sel.innerHTML = '<option value="">選擇人員…</option>' + candidates.map(id=>`<option value="${id}">${dcName(id)}</option>`).join('');
+
+  // 重置密碼下拉
+  const rsel = document.getElementById('resetPwdSelect');
+  if (rsel) rsel.innerHTML = '<option value="">選擇要重置的帳號…</option>' + [...ALLOWED_IDS].map(id=>`<option value="${id}">${dcName(id)}</option>`).join('');
 }
 
 function addAdmin() {
-  const id = document.getElementById('adminAddSelect').value;
+  const id   = document.getElementById('adminAddSelect').value;
+  const role = document.getElementById('roleSelect').value;
   if (!id) return;
-  if (!state.admins) state.admins = {};
-  state.admins[id] = true;
-  broadcast();
-  renderAdmins();
-}
-
-function removeAdmin(id) {
-  const admins = state.admins || {};
-  const remaining = Object.keys(admins).filter(k => admins[k] && k !== id);
-  if (remaining.length === 0) { alert('至少要保留一位管理員'); return; }
-  if (!confirm(`確定移除 ${id} 的管理員權限？`)) return;
-  admins[id] = false;
-  state.admins = admins;
-  broadcast();
+  if (!state.admins)   state.admins   = {};
+  if (!state.managers) state.managers = {};
+  if (role === 'admin') {
+    state.admins[id]   = true;
+    state.managers[id] = false;
+  } else {
+    state.managers[id] = true;
+    state.admins[id]   = false;
+  }
+  saveConfig();
   renderAdmins();
   updateNavVisibility();
 }
+
+function removePrivilege(id) {
+  const adminCount = Object.keys(state.admins||{}).filter(k=>state.admins[k]&&k!==id).length;
+  if ((state.admins||{})[id] && adminCount === 0) { alert('至少要保留一位管理員'); return; }
+  if (!confirm(`確定移除 ${dcName(id)} 的權限？`)) return;
+  if (state.admins)   state.admins[id]   = false;
+  if (state.managers) state.managers[id] = false;
+  saveConfig();
+  renderAdmins();
+  updateNavVisibility();
+}
+
+function resetUserPwd() {
+  const id = document.getElementById('resetPwdSelect').value;
+  if (!id) return;
+  if (!confirm(`確定清除 ${dcName(id)} 的密碼？他下次登入時需要重新設定。`)) return;
+  if (!state.config_passwords) state.config_passwords = {};
+  delete state.config_passwords[id];
+  saveConfig();
+  const msg = document.getElementById('pwdMsg');
+  msg.style.color = 'var(--green)'; msg.textContent = `${dcName(id)} 的密碼已清除 ✓`;
+}
+
+// 舊函式向後相容
+function removeAdmin(id) { removePrivilege(id); }
+function changePassword() {}
 
 // ════════════════════════════════════════
 // TABS
@@ -1085,6 +1340,9 @@ function clearPOS() {
   document.getElementById('posCustomer').value = '';
   document.getElementById('posNote').value = '';
   document.getElementById('posBilled').checked = false;
+  document.getElementById('posIsPreorder').checked = false;
+  document.getElementById('preorderTimeRow').style.display = 'none';
+  document.getElementById('posScheduledAt').value = '';
   document.getElementById('posDiscount').value = '0';
   document.getElementById('discPreview').textContent = '';
   document.getElementById('posFoldInput').value = '';
@@ -1098,16 +1356,20 @@ function createOrder() {
   const billed    = document.getElementById('posBilled').checked;
   const userNote  = document.getElementById('posNote').value.trim();
   const customer  = document.getElementById('posCustomer').value.trim();
+  const isPreorder = document.getElementById('posIsPreorder').checked;
+  const scheduledAt = isPreorder ? new Date(document.getElementById('posScheduledAt').value).getTime() : null;
   const snapshot  = {
-    note:      billed ? userNote : ('⚠️ 未開單' + (userNote ? '｜' + userNote : '')),
-    unbilled:  !billed,
-    items:     JSON.parse(JSON.stringify(posCart)),
-    total:     getTotal(),
-    discount:  getDiscount(),
+    note:       billed ? userNote : ('⚠️ 未開單' + (userNote ? '｜' + userNote : '')),
+    unbilled:   !billed,
+    items:      JSON.parse(JSON.stringify(posCart)),
+    total:      getTotal(),
+    discount:   getDiscount(),
     customer,
-    createdBy: dcName(myId()),
-    status:    'waiting',
-    createdAt: Date.now(),
+    createdBy:  dcName(myId()),
+    isPreorder: !!isPreorder,
+    scheduledAt: scheduledAt || null,
+    status:     'waiting',
+    createdAt:  Date.now(),
   };
 
   if (db) {
@@ -1217,10 +1479,11 @@ function orderCard(o) {
     ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;text-align:center">⚠ 未開單</div>` : ''}
     ${allChecked ? `<div id="all-done-${o.id}" style="background:rgba(61,186,110,0.15);color:var(--green);font-size:0.7rem;font-weight:700;padding:3px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;text-align:center;letter-spacing:1px">✓ 全部備妥</div>` : `<div id="all-done-${o.id}" style="display:none"></div>`}
     <div class="oc-top">
-      <span class="oc-id">${o.customer || o.id}</span>
+      <span class="oc-id">${o.customer || o.id}${o.isPreorder?`<span class="preorder-badge">📅 預定</span>`:''}</span>
       <span class="oc-cust">${o.id}</span>
       <span class="oc-time">${time}</span>
     </div>
+    ${o.isPreorder && o.scheduledAt ? `<div class="preorder-time">📅 預定時間：${new Date(o.scheduledAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
     ${itemsHtml}
     ${o.note ? `<div class="oc-note">📝 ${o.note}</div>` : ''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -1494,6 +1757,7 @@ function deductInventory(order) {
 function renderInventory() {
   const lowItems = state.ingredients.filter(i => i.stock < i.minStock);
   const alertBox = document.getElementById('restockAlertBox');
+  if (!alertBox) return;
 
   if (lowItems.length === 0) {
     alertBox.innerHTML = '';
@@ -1516,7 +1780,9 @@ function renderInventory() {
       </div>`;
   }
 
-  document.getElementById('invBody').innerHTML = state.ingredients.map((ing, i) => {
+  const invBodyEl = document.getElementById('invBody');
+  if (!invBodyEl) return;
+  invBodyEl.innerHTML = state.ingredients.map((ing, i) => {
     const low = ing.stock < ing.minStock;
     return `<tr class="${low ? 'low' : ''}">
       <td>${ing.name}</td>
@@ -1529,7 +1795,6 @@ function renderInventory() {
       <td><button class="del-btn" onclick="deleteIng(${i})">✕</button></td>
     </tr>`;
   }).join('');
-
 }
 
 function updateIng(i, field, val) {
@@ -1657,6 +1922,7 @@ function renderAll() {
   renderBoard();
   renderAccounting();
   renderInventory();
+  renderBulletin();
   if (isAdmin()) renderAdmins();
 }
 

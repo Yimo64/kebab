@@ -300,11 +300,35 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 .badge-pin     { background: rgba(232,145,58,0.2); color: var(--primary); }
 .badge-general { background: rgba(255,255,255,0.07); color: var(--muted); }
 .badge-event   { background: rgba(74,158,255,0.2); color: var(--blue); }
-.ann-title { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.ann-title { font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
 .ann-body  { font-size: 0.84rem; color: #c0c4d8; line-height: 1.6; white-space: pre-wrap; }
 .ann-meta  { font-size: 0.7rem; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
 .ann-actions { display: flex; gap: 6px; }
 .ann-compose { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.ann-card.collapsed { cursor: pointer; }
+.ann-card.collapsed:hover { border-color: var(--border-hi); }
+.ann-card.collapsed .ann-body { display: none; }
+.ann-card.collapsed .ann-meta { margin-top: 4px; }
+.ann-expand-hint { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+
+/* ── PREORDER TAB ── */
+.preorder-list-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px; margin-bottom: 10px;
+}
+.preorder-list-card.status-waiting  { border-left: 3px solid var(--yellow); }
+.preorder-list-card.status-preparing{ border-left: 3px solid var(--primary); }
+.preorder-list-card.status-ready    { border-left: 3px solid var(--green); }
+.preorder-list-card.status-done     { border-left: 3px solid #444; opacity: 0.6; }
+.preorder-sched { font-size: 1rem; font-weight: 700; color: var(--blue); margin-bottom: 6px; }
+.preorder-status-badge {
+  display: inline-block; font-size: 0.68rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; margin-left: 8px;
+}
+.psb-waiting   { background: rgba(232,195,58,0.2); color: var(--yellow); }
+.psb-preparing { background: rgba(232,145,58,0.2); color: var(--primary); }
+.psb-ready     { background: rgba(61,186,110,0.2); color: var(--green); }
+.psb-done      { background: rgba(255,255,255,0.07); color: var(--muted); }
 
 /* ── PRE-ORDER ── */
 .preorder-badge {
@@ -432,6 +456,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <div class="nav-title">🥙 Kebab</div>
   <button class="nav-tab active" onclick="switchTab('pos')">🛒 收銀台</button>
   <button class="nav-tab" onclick="switchTab('board')">📋 訂單看板</button>
+  <button class="nav-tab" onclick="switchTab('preorder')">📅 預定訂單</button>
   <button class="nav-tab" onclick="switchTab('acc')">💰 記帳</button>
   <button class="nav-tab" onclick="switchTab('bulletin')">📢 公告板</button>
   <button class="nav-tab" id="navSettings" onclick="switchTab('settings')" style="display:none">⚙️ 設定</button>
@@ -556,6 +581,17 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
+<!-- ═══ PREORDER TAB ═══ -->
+<div class="tab" id="tab-preorder">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div class="sec-title" style="margin-bottom:0;border:none">預定訂單</div>
+    <label style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="preorderShowDone" style="accent-color:var(--primary)" onchange="renderPreorder()"> 顯示已取餐
+    </label>
+  </div>
+  <div id="preorderList"></div>
+</div>
+
 <!-- ═══ ACCOUNTING TAB ═══ -->
 <div class="tab" id="tab-acc">
   <div class="acc-layout">
@@ -594,11 +630,6 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <div class="ann-compose" id="annCompose" style="display:none">
     <div class="sec-title">新增公告</div>
     <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <select id="annCategory" style="flex:1;min-width:120px">
-        <option value="general">💬 一般</option>
-        <option value="urgent">🚨 緊急</option>
-        <option value="event">📅 活動</option>
-      </select>
       <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--muted);cursor:pointer">
         <input type="checkbox" id="annPinned" style="accent-color:var(--primary)"> 📌 置頂
       </label>
@@ -712,38 +743,56 @@ const DC_NAMES = {
 
 function dcName(id) { return DC_NAMES[id] || id; }
 
-let _pendingLoginId = null; // 等待設定密碼的 ID
+async function hashPwd(pwd) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function isHashed(s) { return /^[0-9a-f]{64}$/.test(s); }
 
-function doLogin() {
+let _pendingLoginId = null;
+
+async function doLogin() {
   const input = document.getElementById('loginInput').value.trim();
   const pwd   = document.getElementById('loginPwd').value;
   const err   = document.getElementById('loginErr');
   if (!input) { err.textContent = '請輸入員工編號'; return; }
   if (!ALLOWED_IDS.has(input)) { err.textContent = '員工編號不存在'; document.getElementById('loginInput').value = ''; return; }
   const passwords = state.config_passwords || {};
-  const myPwd = passwords[input] || '';
-  if (!myPwd) {
-    // 首次登入：直接以輸入的密碼作為新密碼儲存
+  const stored = passwords[input] || '';
+  if (!stored) {
+    // 首次登入：hash 後儲存
     if (!pwd) { err.textContent = '首次登入，請輸入你想設定的密碼'; return; }
     if (pwd.length < 4) { err.textContent = '密碼至少 4 個字元'; return; }
     if (!state.config_passwords) state.config_passwords = {};
-    state.config_passwords[input] = pwd;
+    state.config_passwords[input] = await hashPwd(pwd);
     saveConfig();
     loginSuccess(input);
     return;
   }
-  if (pwd !== myPwd) { err.textContent = '密碼錯誤'; document.getElementById('loginPwd').value = ''; return; }
+  // 驗證密碼（支援舊明文自動遷移）
+  let match = false;
+  if (isHashed(stored)) {
+    match = (await hashPwd(pwd)) === stored;
+  } else {
+    // 舊明文：比對後自動升級為 hash
+    if (pwd === stored) {
+      match = true;
+      state.config_passwords[input] = await hashPwd(pwd);
+      saveConfig();
+    }
+  }
+  if (!match) { err.textContent = '密碼錯誤'; document.getElementById('loginPwd').value = ''; return; }
   loginSuccess(input);
 }
 
-function confirmSetPwd() {
+async function confirmSetPwd() {
   const p1 = document.getElementById('setPwd1').value;
   const p2 = document.getElementById('setPwd2').value;
   const err = document.getElementById('setPwdErr');
   if (!p1 || p1.length < 4) { err.textContent = '密碼至少 4 個字元'; return; }
   if (p1 !== p2) { err.textContent = '兩次輸入不一致'; return; }
   if (!state.config_passwords) state.config_passwords = {};
-  state.config_passwords[_pendingLoginId] = p1;
+  state.config_passwords[_pendingLoginId] = await hashPwd(p1);
   saveConfig();
   document.getElementById('setPwdOverlay').style.display = 'none';
   document.getElementById('setPwd1').value = '';
@@ -891,7 +940,7 @@ function initFirebase(cfg) {
     R.orders().on('value', snap => {
       state.orders = snap.val() ? Object.values(snap.val()) : [];
       cacheLocal();
-      renderBoard(); renderStats();
+      renderBoard(); renderPreorder(); renderStats();
     }, () => setSyncStatus('error'));
 
     // 今日已取餐（獨立節點）
@@ -1010,32 +1059,41 @@ function changePassword() {
 }
 
 // ── 公告板
+const _expandedAnns = new Set();
+
+function toggleAnn(id) {
+  if (_expandedAnns.has(id)) _expandedAnns.delete(id);
+  else _expandedAnns.add(id);
+  renderBulletin();
+}
+
 function renderBulletin() {
   const anns = state.announcements || [];
   const admin = isAdmin();
-  if (admin) {
-    document.getElementById('annNewBtn').style.display = '';
-  }
-  const catMap = { urgent:'🚨 緊急', event:'📅 活動', general:'💬 一般' };
-  const badgeMap = { urgent:'badge-urgent', event:'badge-event', general:'badge-general' };
+  if (admin) document.getElementById('annNewBtn').style.display = '';
+
   document.getElementById('bulletinList').innerHTML = anns.length === 0
     ? `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">目前沒有公告</div>`
-    : anns.map(a => `
-      <div class="ann-card ${a.pinned?'pinned':''} ${a.category==='urgent'?'urgent':''}">
-        <div style="margin-bottom:6px">
-          ${a.pinned?`<span class="ann-badge badge-pin">📌 置頂</span>`:''}
-          <span class="ann-badge ${badgeMap[a.category]||'badge-general'}">${catMap[a.category]||'💬 一般'}</span>
-        </div>
+    : anns.map(a => {
+        const expanded = a.pinned || _expandedAnns.has(a.id);
+        const collapsedClass = expanded ? '' : 'collapsed';
+        const clickAttr = expanded ? '' : `onclick="toggleAnn('${a.id}')"`;
+        return `
+      <div class="ann-card ${a.pinned?'pinned':''} ${collapsedClass}" ${clickAttr}>
+        ${a.pinned ? `<div style="margin-bottom:6px"><span class="ann-badge badge-pin">📌 置頂</span></div>` : ''}
         <div class="ann-title">${a.title}</div>
         <div class="ann-body">${a.content}</div>
+        ${!expanded ? `<div class="ann-expand-hint">▼ 點擊展開</div>` : ''}
         <div class="ann-meta">
           <span>👤 ${a.author} · ${new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-          ${admin ? `<div class="ann-actions">
-            <button onclick="togglePin('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:${a.pinned?'var(--primary)':'var(--muted)'};padding:3px 8px;font-size:0.7rem">${a.pinned?'取消置頂':'置頂'}</button>
-            <button onclick="deleteAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 8px;font-size:0.7rem">刪除</button>
-          </div>` : ''}
+          <div style="display:flex;gap:6px;align-items:center">
+            ${expanded && !a.pinned ? `<button onclick="event.stopPropagation();toggleAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 8px;font-size:0.7rem">▲ 收起</button>` : ''}
+            ${admin ? `<button onclick="event.stopPropagation();togglePin('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:${a.pinned?'var(--primary)':'var(--muted)'};padding:3px 8px;font-size:0.7rem">${a.pinned?'取消置頂':'置頂'}</button>
+            <button onclick="event.stopPropagation();deleteAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 8px;font-size:0.7rem">刪除</button>` : ''}
+          </div>
         </div>
-      </div>`).join('');
+      </div>`;
+      }).join('');
 }
 
 function postAnnouncement() {
@@ -1045,7 +1103,6 @@ function postAnnouncement() {
   const id = 'ann_' + Date.now();
   const ann = {
     id, title, content,
-    category: document.getElementById('annCategory').value,
     pinned:   document.getElementById('annPinned').checked,
     author:   dcName(myId()),
     createdAt: Date.now(),
@@ -1928,12 +1985,56 @@ function renderStats() {
 // RENDER ALL
 // ════════════════════════════════════════
 
+function renderPreorder() {
+  const showDone = document.getElementById('preorderShowDone')?.checked;
+  const statusLabel = { waiting:'⏳ 等待中', preparing:'🔥 製作中', ready:'✅ 完成', done:'📦 已取餐' };
+  const statusBadge = { waiting:'psb-waiting', preparing:'psb-preparing', ready:'psb-ready', done:'psb-done' };
+
+  let orders = (state.orders || []).filter(o => o.isPreorder);
+  if (!showDone) orders = orders.filter(o => o.status !== 'done');
+  orders.sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
+
+  const el = document.getElementById('preorderList');
+  if (!el) return;
+  if (orders.length === 0) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">目前沒有預定訂單</div>`;
+    return;
+  }
+  el.innerHTML = orders.map(o => {
+    const schedTime = o.scheduledAt
+      ? new Date(o.scheduledAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '未指定時間';
+    const itemsTxt = o.items.map(i=>`${i.name}×${i.qty}`).join('、');
+    let actions = '';
+    if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
+    if (o.status === 'preparing') actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','ready')">完成製作</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','waiting')">退回等待</button>`;
+    if (o.status === 'ready')     actions = `<button class="oc-btn ob-done" onclick="moveOrder('${o.id}','done')">確認取餐</button><button class="oc-btn ob-prev" onclick="moveOrder('${o.id}','preparing')">退回製作</button>`;
+    if (o.status === 'done')      actions = `<button class="oc-btn ob-prev" style="background:#21262d;color:#8b949e" onclick="moveOrder('${o.id}','ready')">退回完成</button>`;
+    return `<div class="preorder-list-card status-${o.status}">
+      <div class="preorder-sched">📅 ${schedTime}
+        <span class="preorder-status-badge ${statusBadge[o.status]}">${statusLabel[o.status]}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <span style="font-weight:700;font-size:0.95rem">${o.customer || o.id}</span>
+          <span style="font-size:0.75rem;color:var(--muted);margin-left:8px">${o.id}</span>
+        </div>
+        <div style="font-weight:700;color:var(--primary)">$${o.total}${o.discount>0?` (-$${o.discount})`:''}</div>
+      </div>
+      <div class="oc-items" style="margin-bottom:6px">${itemsTxt}</div>
+      ${o.note ? `<div class="oc-note" style="margin-bottom:6px">📝 ${o.note}</div>` : ''}
+      <div class="oc-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderAll() {
   updateNavVisibility();
   renderStats();
   renderMenuGrid();
   renderMenuEditor();
   renderBoard();
+  renderPreorder();
   renderAccounting();
   renderInventory();
   renderBulletin();

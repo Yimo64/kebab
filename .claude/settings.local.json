@@ -3,7 +3,9 @@
     "allow": [
       "Bash(firebase --version)",
       "Bash(npm --version)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(node --check /tmp/k1.js)",
+      "Bash(node --check /tmp/k2.js)"
     ]
   }
 }

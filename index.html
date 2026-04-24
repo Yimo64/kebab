@@ -381,6 +381,16 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 .menu-drag-row.dragging { opacity: 0.45; }
 .drag-handle { cursor: grab; color: var(--muted); font-size: 1.1rem; padding: 2px 4px; user-select: none; flex-shrink: 0; line-height: 1; }
 .drag-handle:active { cursor: grabbing; color: var(--primary); }
+
+/* ── EMOJI PICKER ── */
+.emoji-picker-wrap { position: relative; flex-shrink: 0; }
+.emoji-pick-btn { background: var(--bg-deep); border: 1px solid var(--border-hi); border-radius: 7px; padding: 3px 6px; font-size: 1.2rem; cursor: pointer; line-height: 1; min-width: 38px; text-align: center; transition: border-color 0.13s; }
+.emoji-pick-btn:hover { border-color: var(--primary); }
+.emoji-grid-drop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 300; background: var(--bg-card); border: 1px solid var(--border-hi); border-radius: 10px; padding: 8px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; box-shadow: 0 8px 32px rgba(0,0,0,0.55); min-width: 252px; }
+.emoji-opt { background: transparent; border: 1px solid transparent; border-radius: 5px; font-size: 1.1rem; cursor: pointer; padding: 3px; line-height: 1; text-align: center; transition: background 0.1s; }
+.emoji-opt:hover { background: var(--border); }
+.emoji-opt.selected { background: rgba(232,145,58,0.22); border-color: var(--primary); }
+.emoji-auto-btn { font-size: 0.7rem; color: var(--muted); font-family: inherit; }
 .mt8 { margin-top: 8px; }
 .mt12 { margin-top: 12px; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
@@ -1606,7 +1616,7 @@ function getEmoji(name) {
 function renderMenuGrid() {
   document.getElementById('menuGrid').innerHTML = state.menu.map((item, i) =>
     `<div class="menu-btn" onclick="addToCart(${i})">
-      <span class="mb-emoji">${getEmoji(item.name)}</span>
+      <span class="mb-emoji">${item.emoji || getEmoji(item.name)}</span>
       <div class="mb-name">${item.name}</div>
       <div class="mb-price">$${item.price}</div>
     </div>`
@@ -1956,6 +1966,51 @@ function createOrder() {
   }
 }
 
+// ── Emoji picker
+const FOOD_EMOJIS = [
+  '🥙','🌯','🌮','🍔','🍟','🧆','🥗','🍱','🥩','🍖',
+  '🧀','🥚','🍳','🍜','🍛','🍝','🍣','🥘','🌽','🥦',
+  '🥕','🧅','🫓','🫔','🥪','🍞','🧇','🥞',
+  '💧','🥤','🧃','🧋','🍊','🍋','🍵','☕','🧉','🥛',
+  '🍺','🧊','⚡','🔋','🎁','⭐','🔥','✨','💎','🍽️',
+  // 搞笑 & 18禁
+  '❓','💩','🤡','👻','💀','🤪','🫠','🥴','🤤','😈',
+  '🙈','🫦','👅','💋','🔞','🍆','🍑','🍌','🌭','💦',
+  '🥵','😏','🦆','🐸','🗿','🫃','🧌','🪄'
+];
+let _emojiPickerOpen = null;
+
+function toggleEmojiPicker(i, e) {
+  e.stopPropagation();
+  if (_emojiPickerOpen === i) { closeEmojiPicker(); return; }
+  closeEmojiPicker();
+  _emojiPickerOpen = i;
+  const el = document.getElementById('epick-' + i);
+  if (el) el.style.display = 'grid';
+}
+function closeEmojiPicker() {
+  if (_emojiPickerOpen !== null) {
+    const el = document.getElementById('epick-' + _emojiPickerOpen);
+    if (el) el.style.display = 'none';
+    _emojiPickerOpen = null;
+  }
+}
+function selectEmoji(i, emoji, e) {
+  e.stopPropagation();
+  state.menu[i].emoji = emoji;
+  broadcast();
+  renderMenuGrid();
+  renderMenuEditor();
+}
+function clearEmoji(i, e) {
+  e.stopPropagation();
+  delete state.menu[i].emoji;
+  broadcast();
+  renderMenuGrid();
+  renderMenuEditor();
+}
+document.addEventListener('click', () => closeEmojiPicker());
+
 // ── Menu editor
 let _menuDragIdx = null;
 
@@ -1991,19 +2046,33 @@ function menuDragEnd(e) {
 }
 
 function renderMenuEditor() {
-  document.getElementById('menuEditor').innerHTML = state.menu.map((item, i) =>
-    `<div class="menu-drag-row" draggable="true" data-idx="${i}"
+  document.getElementById('menuEditor').innerHTML = state.menu.map((item, i) => {
+    const curEmoji = item.emoji || getEmoji(item.name);
+    const hasCustom = !!item.emoji;
+    const emojiOpts = FOOD_EMOJIS.map(e =>
+      `<button class="emoji-opt${item.emoji===e?' selected':''}" onclick="selectEmoji(${i},'${e}',event)" title="${e}">${e}</button>`
+    ).join('');
+    const autoBtn = hasCustom
+      ? `<button class="emoji-opt emoji-auto-btn" onclick="clearEmoji(${i},event)" title="恢復自動偵測">↺自動</button>`
+      : '';
+    return `<div class="menu-drag-row" draggable="true" data-idx="${i}"
         ondragstart="menuDragStart(event,${i})"
         ondragover="menuDragOver(event)"
         ondragleave="menuDragLeave(event)"
         ondrop="menuDrop(event,${i})"
         ondragend="menuDragEnd(event)">
       <span class="drag-handle" title="拖曳排序">⠿</span>
+      <div class="emoji-picker-wrap">
+        <button class="emoji-pick-btn" onclick="toggleEmojiPicker(${i},event)" title="選擇 Emoji">${curEmoji}</button>
+        <div id="epick-${i}" class="emoji-grid-drop" style="display:none">
+          ${emojiOpts}${autoBtn}
+        </div>
+      </div>
       <input type="text" value="${item.name}" style="flex:2" onchange="state.menu[${i}].name=this.value;broadcast();renderMenuGrid();renderRecipes()">
       <input type="number" value="${item.price}" style="width:80px" onchange="state.menu[${i}].price=parseInt(this.value)||0;broadcast();renderMenuGrid()">
       <button onclick="deleteMenuItem(${i})" style="background:transparent;border:none;color:#555;cursor:pointer;font-size:1rem">✕</button>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 }
 
 function deleteMenuItem(i) {

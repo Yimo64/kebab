@@ -453,6 +453,12 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   cursor: pointer; transition: all 0.13s;
 }
 .login-user-badge:hover { border-color: var(--red); color: var(--red); }
+.nav-refresh-btn {
+  font-size: 1rem; color: var(--muted); background: transparent;
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 3px 9px; cursor: pointer; transition: all 0.13s; line-height: 1.4;
+}
+.nav-refresh-btn:hover { border-color: var(--border-hi); color: var(--text); transform: rotate(180deg); }
 
 /* ── UI DIALOG ── */
 #uiDialog {
@@ -525,6 +531,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   <div class="login-user-badge" id="userBadge" onclick="doLogout()" title="點擊登出">
     <span>👤</span><span id="userIdDisplay">—</span><span style="font-size:0.65rem">登出</span>
   </div>
+  <button class="nav-refresh-btn" onclick="location.reload()" title="重新整理頁面 (F5)">⟳</button>
 </nav>
 
 <!-- STATS -->

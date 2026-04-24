@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(firebase --version)"
+      "Bash(firebase --version)",
+      "Bash(npm --version)",
+      "Bash(node *)"
     ]
   }
 }

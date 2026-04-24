@@ -900,15 +900,17 @@ function customPrompt(msg, defaultVal) {
 
 <!-- ═══ CUSTOMERS TAB ═══ -->
 <div class="tab" id="tab-customers">
-  <div class="card" style="max-width:640px">
+  <div class="card" style="max-width:640px;margin:0 auto">
     <div class="sec-title">新增客人</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <input type="text" id="newCustCid" placeholder="客人 CID" style="flex:2;min-width:160px">
-      <input type="text" id="newCustName" placeholder="客人名稱" style="flex:1;min-width:100px">
+      <input type="text" id="newCustName" placeholder="客人名字" style="flex:1;min-width:100px">
+      <input type="text" id="newCustPhone" placeholder="客人電話" style="flex:1;min-width:100px">
       <button class="btn-small btn-green" onclick="addCustomer()">新增</button>
     </div>
     <div class="sec-title">名單</div>
     <div id="customerList"></div>
+    <div id="custPagination" style="display:flex;align-items:center;justify-content:center;gap:12px;padding-top:12px;margin-top:4px;border-top:1px solid var(--border)"></div>
   </div>
 </div>
 
@@ -1790,6 +1792,8 @@ function renderLeaderboard() {
 
 // ── 客人名單
 let _selectedCustCid = null;
+let _custPage = 0;
+const CUST_PER_PAGE = 10;
 
 function filterCustomers() {
   const q = (document.getElementById('posCustomer').value || '').trim().toLowerCase();
@@ -1798,7 +1802,7 @@ function filterCustomers() {
   if (!q) { drop.style.display = 'none'; return; }
   const custs = Object.values(state.customers || {});
   const matches = custs.filter(c =>
-    c.name.toLowerCase().includes(q) || c.cid.toLowerCase().includes(q)
+    c.name.toLowerCase().includes(q) || c.cid.toLowerCase().includes(q) || (c.phone||'').includes(q)
   ).slice(0, 8);
   if (!matches.length) { drop.style.display = 'none'; return; }
   drop.innerHTML = matches.map(c => `
@@ -1821,13 +1825,16 @@ function hideCustDrop() {
 }
 
 function addCustomer() {
-  const cid  = document.getElementById('newCustCid').value.trim();
-  const name = document.getElementById('newCustName').value.trim();
+  const cid   = document.getElementById('newCustCid').value.trim();
+  const name  = document.getElementById('newCustName').value.trim();
+  const phone = document.getElementById('newCustPhone').value.trim();
   if (!cid || !name) return;
-  if (db) db.ref('kebab/customers/' + cid).set({ cid, name }).catch(fbErr);
-  else state.customers[cid] = { cid, name };
+  if (db) db.ref('kebab/customers/' + cid).set({ cid, name, phone }).catch(fbErr);
+  else { state.customers[cid] = { cid, name, phone }; _custPage = 0; renderCustomerList(); }
   document.getElementById('newCustCid').value = '';
   document.getElementById('newCustName').value = '';
+  document.getElementById('newCustPhone').value = '';
+  _custPage = 0;
 }
 
 async function deleteCustomer(cid) {
@@ -1838,30 +1845,60 @@ async function deleteCustomer(cid) {
 
 async function editCustomerName(cid) {
   const cur = (state.customers[cid] || {}).name || '';
-  const name = await customPrompt('修改客人名稱', cur);
+  const name = await customPrompt('修改客人名字', cur);
   if (!name || !name.trim()) return;
   if (db) db.ref('kebab/customers/' + cid + '/name').set(name.trim()).catch(fbErr);
 }
 
+async function editCustomerPhone(cid) {
+  const cur = (state.customers[cid] || {}).phone || '';
+  const phone = await customPrompt('修改客人電話', cur);
+  if (phone === null) return;
+  if (db) db.ref('kebab/customers/' + cid + '/phone').set(phone.trim()).catch(fbErr);
+  else if (state.customers[cid]) { state.customers[cid].phone = phone.trim(); renderCustomerList(); }
+}
+
 function renderCustomerList() {
   const el = document.getElementById('customerList');
+  const pg = document.getElementById('custPagination');
   if (!el) return;
   const custs = Object.values(state.customers || {}).sort((a,b) => a.name.localeCompare(b.name,'zh-TW'));
   if (!custs.length) {
     el.innerHTML = `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">尚未新增任何客人</div>`;
+    if (pg) pg.innerHTML = '';
     return;
   }
-  el.innerHTML = custs.map(c => `
+  const totalPages = Math.ceil(custs.length / CUST_PER_PAGE);
+  if (_custPage >= totalPages) _custPage = totalPages - 1;
+  const slice = custs.slice(_custPage * CUST_PER_PAGE, (_custPage + 1) * CUST_PER_PAGE);
+  el.innerHTML = slice.map(c => `
     <div class="cust-row">
       <div>
-        <span style="font-weight:600">${c.name}</span>
-        <span style="font-size:0.68rem;color:var(--muted);margin-left:8px;font-family:monospace">${c.cid}</span>
+        <span style="font-weight:700;font-size:1rem;font-family:monospace">${c.cid}</span>
+        <span style="font-size:0.82rem;margin-left:8px">${c.name}</span>
+        ${c.phone ? `<span style="font-size:0.72rem;color:var(--muted);margin-left:6px">${c.phone}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:2px 8px;font-size:0.7rem" onclick="editCustomerName('${c.cid}')">改名</button>
+        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:2px 8px;font-size:0.7rem" onclick="editCustomerPhone('${c.cid}')">改電話</button>
         <button class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:2px 8px;font-size:0.7rem" onclick="deleteCustomer('${c.cid}')">刪除</button>
       </div>
     </div>`).join('');
+  if (pg) {
+    if (totalPages <= 1) {
+      pg.innerHTML = '';
+    } else {
+      pg.innerHTML = `
+        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:${_custPage===0?'var(--muted)':'var(--text)'};padding:3px 12px;font-size:0.78rem" onclick="changeCustPage(-1)" ${_custPage===0?'disabled':''}>‹ 上頁</button>
+        <span style="font-size:0.78rem;color:var(--muted)">第 ${_custPage+1} / ${totalPages} 頁　共 ${custs.length} 人</span>
+        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:${_custPage===totalPages-1?'var(--muted)':'var(--text)'};padding:3px 12px;font-size:0.78rem" onclick="changeCustPage(1)" ${_custPage===totalPages-1?'disabled':''}>下頁 ›</button>`;
+    }
+  }
+}
+
+function changeCustPage(dir) {
+  _custPage += dir;
+  renderCustomerList();
 }
 
 function initSchedSelects() {

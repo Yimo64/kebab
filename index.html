@@ -930,7 +930,10 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
       <input type="text" id="newCustPhone" placeholder="客人電話" style="flex:1;min-width:100px">
       <button class="btn-small btn-green" onclick="addCustomer()">新增</button>
     </div>
-    <div class="sec-title">名單</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div class="sec-title" style="margin-bottom:0;border:none;flex:1">名單</div>
+      <input type="text" id="custSearch" placeholder="搜尋 CID / 名字 / 電話…" style="width:200px;font-size:0.8rem;padding:5px 9px" oninput="_custPage=0;renderCustomerList()">
+    </div>
     <div id="customerList"></div>
     <div id="custPagination" style="display:flex;align-items:center;justify-content:center;gap:12px;padding-top:12px;margin-top:4px;border-top:1px solid var(--border)"></div>
   </div>
@@ -1870,7 +1873,7 @@ function renderLeaderboard() {
 // ── 客人名單
 let _selectedCustCid = null;
 let _custPage = 0;
-const CUST_PER_PAGE = 10;
+const CUST_PER_PAGE = 15;
 
 function filterCustomers() {
   const q = (document.getElementById('posCustomer').value || '').trim().toLowerCase();
@@ -1973,9 +1976,13 @@ function renderCustomerList() {
   const el = document.getElementById('customerList');
   const pg = document.getElementById('custPagination');
   if (!el) return;
-  const custs = Object.values(state.customers || {}).sort((a,b) => a.name.localeCompare(b.name,'zh-TW'));
+  const q = (document.getElementById('custSearch')?.value || '').trim().toLowerCase();
+  let custs = Object.values(state.customers || {}).sort((a,b) => a.name.localeCompare(b.name,'zh-TW'));
+  if (q) custs = custs.filter(c =>
+    c.cid.toLowerCase().includes(q) || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q)
+  );
   if (!custs.length) {
-    el.innerHTML = `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">尚未新增任何客人</div>`;
+    el.innerHTML = `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">${q ? '找不到符合的客人' : '尚未新增任何客人'}</div>`;
     if (pg) pg.innerHTML = '';
     return;
   }
@@ -2088,6 +2095,7 @@ function createOrder() {
     discount:   getDiscount(),
     customer,
     customerCid: _selectedCustCid || null,
+    blacklisted: !!(_selectedCustCid && (state.customers[_selectedCustCid] || {}).blacklist),
     createdBy:  dcName(myId()),
     isPreorder: !!isPreorder,
     scheduledAt: scheduledAt || null,
@@ -2289,6 +2297,7 @@ function orderCard(o) {
   }
 
   let borderStyle = o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)'
+    : o.blacklisted ? 'border-color:#7a1a1a;box-shadow:0 0 8px rgba(180,40,40,0.25)'
     : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)' : '';
 
   let actions = '';
@@ -2299,6 +2308,7 @@ function orderCard(o) {
 
   return `<div class="oc" id="card-${o.id}" style="${borderStyle}">
     ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;text-align:center">⚠ 未開單</div>` : ''}
+    ${o.blacklisted ? `<div style="background:#5a1010;color:#ffaaaa;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:${o.unbilled?'0':'-10px'} -10px 8px;border-radius:${o.unbilled?'0':'7px 7px'} 0 0;letter-spacing:1px;text-align:center">⛔ 黑名單客人</div>` : ''}
     ${allChecked ? `<div id="all-done-${o.id}" style="background:rgba(61,186,110,0.15);color:var(--green);font-size:0.7rem;font-weight:700;padding:3px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;text-align:center;letter-spacing:1px">✓ 全部備妥</div>` : `<div id="all-done-${o.id}" style="display:none"></div>`}
     <div class="oc-top">
       <span class="oc-id">${o.customer || '—'}${o.isPreorder?`<span class="preorder-badge">📅 預定</span>`:''}</span>

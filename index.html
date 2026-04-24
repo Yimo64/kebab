@@ -569,6 +569,54 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   font-size: 0.82rem; font-weight: 600; transition: all 0.13s; font-family: inherit;
 }
 .btn-dlg-cancel:hover { border-color: var(--border-hi); color: var(--text); }
+
+/* ── CUST EDIT MODAL ── */
+#custEditModal {
+  position: fixed; inset: 0; z-index: 9990;
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+#custEditModal.open { display: flex; }
+.cust-edit-card {
+  background: var(--bg-card); border: 1px solid var(--border-hi);
+  border-radius: 16px; padding: 24px; max-width: 420px; width: 100%;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+  animation: dlgIn 0.15s ease;
+}
+.cust-edit-title { font-size: 1rem; font-weight: 700; margin-bottom: 18px; color: var(--text); }
+.cust-edit-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; margin-top: 14px; }
+.cust-edit-cid-box {
+  font-family: monospace; font-size: 1rem; font-weight: 700; color: var(--text);
+  padding: 7px 10px; background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: 7px; letter-spacing: 0.5px;
+}
+.cust-edit-card input[type=text], .cust-edit-card textarea {
+  width: 100%; background: var(--bg-deep); border: 1px solid var(--border-hi);
+  border-radius: 7px; color: var(--text); padding: 7px 10px; font-size: 0.85rem;
+  font-family: inherit;
+}
+.cust-edit-card textarea { resize: none; height: 62px; }
+.blacklist-toggle {
+  display: flex; align-items: center; gap: 10px; margin-top: 16px;
+  padding: 10px 12px; background: var(--bg-deep);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.blacklist-toggle-label { font-size: 0.85rem; flex: 1; }
+.btn-blacklist {
+  padding: 4px 14px; border-radius: 6px; border: 1px solid var(--border-hi);
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 0.78rem; font-weight: 600; font-family: inherit; transition: all 0.15s;
+}
+.btn-blacklist.active {
+  background: rgba(232,64,64,0.15); border-color: rgba(232,64,64,0.6); color: var(--red);
+}
+.cust-row.blacklisted { background: rgba(232,64,64,0.06); border-radius: 6px; }
+.badge-blacklist {
+  display: inline-block; font-size: 0.62rem; font-weight: 700;
+  padding: 1px 6px; border-radius: 4px; margin-left: 8px;
+  background: rgba(232,64,64,0.2); color: var(--red); border: 1px solid rgba(232,64,64,0.4);
+  vertical-align: middle; letter-spacing: 0.5px;
+}
 </style>
 </head>
 <body>
@@ -828,6 +876,29 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
+<!-- ═══ CUST EDIT MODAL ═══ -->
+<div id="custEditModal" onclick="if(event.target===this)closeCustEdit()">
+  <div class="cust-edit-card">
+    <div class="cust-edit-title">編輯客人資料</div>
+    <div class="cust-edit-label">CID（不可修改）</div>
+    <div id="custEditCidDisplay" class="cust-edit-cid-box"></div>
+    <div class="cust-edit-label">名字</div>
+    <input type="text" id="custEditName" placeholder="客人名字">
+    <div class="cust-edit-label">電話</div>
+    <input type="text" id="custEditPhone" placeholder="客人電話">
+    <div class="cust-edit-label">備注</div>
+    <textarea id="custEditNote" placeholder="過敏、喜好、備注…"></textarea>
+    <div class="blacklist-toggle">
+      <span class="blacklist-toggle-label">⛔ 黑名單</span>
+      <button id="custEditBlacklistBtn" class="btn-blacklist" onclick="toggleCustBlacklist()">未列入</button>
+    </div>
+    <div class="ui-dlg-btns" style="margin-top:18px">
+      <button class="btn-dlg-cancel" onclick="closeCustEdit()">取消</button>
+      <button class="btn-small btn-amber" onclick="saveCustEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ LEADERBOARD TAB ═══ -->
 <div class="tab" id="tab-leaderboard">
   <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
@@ -967,6 +1038,11 @@ document.addEventListener('keydown', e => {
   if (!document.getElementById('uiDialog').classList.contains('open')) return;
   if (e.key === 'Escape') { e.preventDefault(); _dlgCancel(); }
   if (e.key === 'Enter' && _dlgMode !== 'prompt') { e.preventDefault(); _dlgOk(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('custEditModal').classList.contains('open')) {
+    e.preventDefault(); closeCustEdit();
+  }
 });
 
 // ════════════════════════════════════════
@@ -1844,19 +1920,53 @@ async function deleteCustomer(cid) {
   else { delete state.customers[cid]; renderCustomerList(); }
 }
 
-async function editCustomerName(cid) {
-  const cur = (state.customers[cid] || {}).name || '';
-  const name = await uiPrompt('修改客人名字', cur);
-  if (!name || !name.trim()) return;
-  if (db) db.ref('kebab/customers/' + cid + '/name').set(name.trim()).catch(fbErr);
+let _editingCid = null;
+let _editBlacklist = false;
+
+function openCustEdit(cid) {
+  const c = state.customers[cid] || {};
+  _editingCid = cid;
+  _editBlacklist = !!c.blacklist;
+  document.getElementById('custEditCidDisplay').textContent = cid;
+  document.getElementById('custEditName').value  = c.name  || '';
+  document.getElementById('custEditPhone').value = c.phone || '';
+  document.getElementById('custEditNote').value  = c.note  || '';
+  _updateBlacklistBtn();
+  document.getElementById('custEditModal').classList.add('open');
+  setTimeout(() => document.getElementById('custEditName').focus(), 60);
 }
 
-async function editCustomerPhone(cid) {
-  const cur = (state.customers[cid] || {}).phone || '';
-  const phone = await uiPrompt('修改客人電話', cur);
-  if (phone === null) return;
-  if (db) db.ref('kebab/customers/' + cid + '/phone').set(phone.trim()).catch(fbErr);
-  else if (state.customers[cid]) { state.customers[cid].phone = phone.trim(); renderCustomerList(); }
+function closeCustEdit() {
+  document.getElementById('custEditModal').classList.remove('open');
+  _editingCid = null;
+}
+
+function toggleCustBlacklist() {
+  _editBlacklist = !_editBlacklist;
+  _updateBlacklistBtn();
+}
+
+function _updateBlacklistBtn() {
+  const btn = document.getElementById('custEditBlacklistBtn');
+  if (_editBlacklist) {
+    btn.textContent = '⛔ 已列入黑名單';
+    btn.classList.add('active');
+  } else {
+    btn.textContent = '未列入';
+    btn.classList.remove('active');
+  }
+}
+
+async function saveCustEdit() {
+  if (!_editingCid) return;
+  const name  = document.getElementById('custEditName').value.trim();
+  const phone = document.getElementById('custEditPhone').value.trim();
+  const note  = document.getElementById('custEditNote').value.trim();
+  if (!name) { uiAlert('名字不能為空'); return; }
+  const data = { cid: _editingCid, name, phone, note, blacklist: _editBlacklist };
+  if (db) db.ref('kebab/customers/' + _editingCid).update(data).catch(fbErr);
+  else if (state.customers[_editingCid]) Object.assign(state.customers[_editingCid], data);
+  closeCustEdit();
 }
 
 function renderCustomerList() {
@@ -1873,15 +1983,16 @@ function renderCustomerList() {
   if (_custPage >= totalPages) _custPage = totalPages - 1;
   const slice = custs.slice(_custPage * CUST_PER_PAGE, (_custPage + 1) * CUST_PER_PAGE);
   el.innerHTML = slice.map(c => `
-    <div class="cust-row">
+    <div class="cust-row${c.blacklist ? ' blacklisted' : ''}">
       <div>
         <span style="font-weight:700;font-size:1rem;font-family:monospace">${c.cid}</span>
+        ${c.blacklist ? `<span class="badge-blacklist">黑名單</span>` : ''}
         <span style="font-size:0.82rem;margin-left:8px">${c.name}</span>
         ${c.phone ? `<span style="font-size:0.72rem;color:var(--muted);margin-left:6px">${c.phone}</span>` : ''}
+        ${c.note ? `<span style="font-size:0.7rem;color:var(--muted);margin-left:8px;font-style:italic">${c.note}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:2px 8px;font-size:0.7rem" onclick="editCustomerName('${c.cid}')">改名</button>
-        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:2px 8px;font-size:0.7rem" onclick="editCustomerPhone('${c.cid}')">改電話</button>
+        <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:2px 8px;font-size:0.7rem" onclick="openCustEdit('${c.cid}')">編輯</button>
         <button class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:2px 8px;font-size:0.7rem" onclick="deleteCustomer('${c.cid}')">刪除</button>
       </div>
     </div>`).join('');

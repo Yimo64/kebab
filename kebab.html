@@ -1314,7 +1314,6 @@ function subscribeDB() {
     if (!configReady) {
       configReady = true;
       setSyncStatus('connected');
-      checkDailyReset();
       renderAll();
     } else {
       cacheLocal();
@@ -2822,11 +2821,9 @@ const FIREBASE_CONFIG = {
 };
 initFirebase(FIREBASE_CONFIG);
 
-checkDailyReset();
 renderAll();
 renderPOS();
 setLbScope('today');
-setInterval(checkDailyReset, 60000);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnn(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('custEditModal').classList.contains('open')) {

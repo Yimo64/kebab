@@ -2,9 +2,15 @@
   "rules": {
     ".read": false,
     ".write": false,
+
+    "authorizedStaff": {
+      ".read":  false,
+      ".write": false
+    },
+
     "kebab": {
-      ".read":  "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal')",
-      ".write": "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal')",
+      ".read":  "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal') && root.child('authorizedStaff').hasChild(auth.token.email.replace('@kebab.internal',''))",
+      ".write": "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal') && root.child('authorizedStaff').hasChild(auth.token.email.replace('@kebab.internal',''))",
 
       "orders": {
         "$orderId": {
@@ -37,22 +43,6 @@
       "announcements": {
         "$annId": {
           ".validate": "newData.hasChildren(['id','title','author','createdAt']) && newData.child('title').isString() && newData.child('title').val().length <= 200"
-        }
-      },
-
-      "config": {
-        "authorizedStaff": {
-          ".write": "auth != null && root.child('kebab/config/admins').child(auth.token.email.replace('@kebab.internal','')).val() === true"
-        },
-        "admins": {
-          ".write": "auth != null && root.child('kebab/config/admins').child(auth.token.email.replace('@kebab.internal','')).val() === true"
-        },
-        "managers": {
-          ".write": "auth != null && root.child('kebab/config/admins').child(auth.token.email.replace('@kebab.internal','')).val() === true"
-        },
-        "passwords": {
-          ".read":  false,
-          ".write": false
         }
       }
     }

@@ -1275,7 +1275,9 @@ function clearAllCompleted() {
 }
 function saveConfig() {
   cacheLocal();
-  if (db) R.config().set({
+  // 用 .update() 而非 .set()，只覆蓋指定欄位，避免把 authorizedStaff
+  // 等「只住在 Firebase、不在 state」的節點一併洗掉
+  if (db) R.config().update({
     menu: state.menu, ingredients: state.ingredients,
     recipes: state.recipes, admins: state.admins,
     managers: state.managers || {},

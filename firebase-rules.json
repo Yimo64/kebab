@@ -3,8 +3,8 @@
     ".read": false,
     ".write": false,
     "kebab": {
-      ".read":  "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal') && root.child('kebab/config/authorizedStaff').hasChild(auth.token.email.replace('@kebab.internal',''))",
-      ".write": "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal') && root.child('kebab/config/authorizedStaff').hasChild(auth.token.email.replace('@kebab.internal',''))",
+      ".read":  "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal')",
+      ".write": "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal')",
 
       "orders": {
         "$orderId": {

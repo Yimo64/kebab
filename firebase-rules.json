@@ -1,0 +1,60 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "kebab": {
+      ".read":  "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal') && root.child('kebab/config/authorizedStaff').hasChild(auth.token.email.replace('@kebab.internal',''))",
+      ".write": "auth != null && auth.token.email != null && auth.token.email.endsWith('@kebab.internal') && root.child('kebab/config/authorizedStaff').hasChild(auth.token.email.replace('@kebab.internal',''))",
+
+      "orders": {
+        "$orderId": {
+          ".validate": "newData.hasChildren(['id','items','total','createdAt','status']) && newData.child('total').isNumber() && newData.child('total').val() >= 0 && newData.child('total').val() < 1000000"
+        }
+      },
+
+      "completed": {
+        "$orderId": {
+          ".validate": "newData.hasChildren(['id','items','total','createdAt']) && newData.child('total').isNumber()"
+        }
+      },
+
+      "history": {
+        "$date": {
+          ".validate": "newData.hasChildren(['date','revenue','orders']) && newData.child('revenue').isNumber()"
+        }
+      },
+
+      "nextId": {
+        ".validate": "newData.isNumber()"
+      },
+
+      "customers": {
+        "$cid": {
+          ".validate": "newData.hasChildren(['cid','name'])"
+        }
+      },
+
+      "announcements": {
+        "$annId": {
+          ".validate": "newData.hasChildren(['id','title','author','createdAt']) && newData.child('title').isString() && newData.child('title').val().length <= 200"
+        }
+      },
+
+      "config": {
+        "authorizedStaff": {
+          ".write": "auth != null && root.child('kebab/config/admins').child(auth.token.email.replace('@kebab.internal','')).val() === true"
+        },
+        "admins": {
+          ".write": "auth != null && root.child('kebab/config/admins').child(auth.token.email.replace('@kebab.internal','')).val() === true"
+        },
+        "managers": {
+          ".write": "auth != null && root.child('kebab/config/admins').child(auth.token.email.replace('@kebab.internal','')).val() === true"
+        },
+        "passwords": {
+          ".read":  false,
+          ".write": false
+        }
+      }
+    }
+  }
+}

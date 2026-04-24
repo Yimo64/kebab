@@ -6,6 +6,7 @@
 <title>Kebab 管理系統</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -467,34 +468,17 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
-<!-- SET PASSWORD OVERLAY -->
-<div id="setPwdOverlay" style="position:fixed;inset:0;z-index:9998;background:var(--bg);display:none;align-items:center;justify-content:center">
-  <div class="login-card">
-    <div class="login-logo">🔑</div>
-    <div class="login-title" style="font-size:1rem">設定你的密碼</div>
-    <div class="login-sub" id="setPwdName"></div>
-    <label class="login-label">設定密碼</label>
-    <input class="login-input" type="password" id="setPwd1" placeholder="輸入新密碼"
-      onkeydown="if(event.key==='Enter')document.getElementById('setPwd2').focus()">
-    <label class="login-label">再次確認</label>
-    <input class="login-input" type="password" id="setPwd2" placeholder="再次輸入"
-      onkeydown="if(event.key==='Enter')confirmSetPwd()" style="margin-bottom:14px">
-    <button class="login-btn" onclick="confirmSetPwd()">確認設定</button>
-    <div class="login-err" id="setPwdErr"></div>
-  </div>
-</div>
-
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
   <div class="login-card">
     <div class="login-logo">🥙</div>
     <div class="login-title">Kebab</div>
-    <div class="login-sub">員工專用系統 · 首次登入直接輸入密碼即可設定</div>
+    <div class="login-sub">員工專用系統 · 首次登入輸入想設定的密碼即可（至少 6 字元）</div>
     <label class="login-label">員工編號</label>
     <input class="login-input" type="text" id="loginInput" placeholder="輸入你的員工編號"
       onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
     <label class="login-label" id="loginPwdLabel">密碼</label>
-    <input class="login-input" type="password" id="loginPwd" placeholder="輸入密碼"
+    <input class="login-input" type="password" id="loginPwd" placeholder="密碼（至少 6 字元）"
       onkeydown="if(event.key==='Enter')doLogin()" style="margin-bottom:14px">
     <button class="login-btn" onclick="doLogin()">登入</button>
     <div class="login-err" id="loginErr"></div>
@@ -762,15 +746,15 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
       <!-- 重置密碼 -->
       <div class="card" id="settingsPasswordSection">
         <div class="sec-title">重置員工密碼</div>
-        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">可清除某人的密碼，讓他下次登入時重新設定</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">密碼由 Firebase Auth 管理，前端無法直接清除。請到 Firebase Console → Authentication → Users 刪除使用者。</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="resetPwdSelect" style="flex:1"></select>
-          <button class="btn-small" style="background:#7a1a1a;color:#ffaaaa;border:none" onclick="resetUserPwd()">清除密碼</button>
+          <button class="btn-small" style="background:#7a1a1a;color:#ffaaaa;border:none" onclick="resetUserPwd()">說明</button>
         </div>
         <div style="margin-top:8px">
-          <button class="btn-small" style="background:#4a1a1a;color:#ffaaaa;border:1px solid #7a1a1a;width:100%" onclick="resetAllPwds()">⚠ 清除所有人密碼（全員重設）</button>
+          <button class="btn-small" style="background:#4a1a1a;color:#ffaaaa;border:1px solid #7a1a1a;width:100%" onclick="resetAllPwds()">⚠ 全員重設密碼說明</button>
         </div>
-        <div id="pwdMsg" style="font-size:0.78rem;margin-top:8px;min-height:16px"></div>
+        <div id="pwdMsg" style="font-size:0.78rem;margin-top:8px;min-height:16px;line-height:1.5"></div>
       </div>
     </div>
 
@@ -834,62 +818,53 @@ const DC_NAMES = {
 
 function dcName(id) { return DC_NAMES[id] || id; }
 
-async function hashPwd(pwd) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-function isHashed(s) { return /^[0-9a-f]{64}$/.test(s); }
-
-let _pendingLoginId = null;
+// 員工編號 → Firebase Auth 假 email
+const EMAIL_DOMAIN = '@kebab.internal';
+const idToEmail  = id    => id + EMAIL_DOMAIN;
+const emailToId  = email => (email || '').replace(EMAIL_DOMAIN, '');
 
 async function doLogin() {
   const input = document.getElementById('loginInput').value.trim();
   const pwd   = document.getElementById('loginPwd').value;
   const err   = document.getElementById('loginErr');
+  err.textContent = '';
   if (!input) { err.textContent = '請輸入員工編號'; return; }
   if (!ALLOWED_IDS.has(input)) { err.textContent = '員工編號不存在'; document.getElementById('loginInput').value = ''; return; }
-  const passwords = state.config_passwords || {};
-  const stored = passwords[input] || '';
-  if (!stored) {
-    // 首次登入：hash 後儲存
-    if (!pwd) { err.textContent = '首次登入，請輸入你想設定的密碼'; return; }
-    if (pwd.length < 4) { err.textContent = '密碼至少 4 個字元'; return; }
-    if (!state.config_passwords) state.config_passwords = {};
-    state.config_passwords[input] = await hashPwd(pwd);
-    saveConfig();
-    loginSuccess(input);
-    return;
-  }
-  // 驗證密碼（支援舊明文自動遷移）
-  let match = false;
-  if (isHashed(stored)) {
-    match = (await hashPwd(pwd)) === stored;
-  } else {
-    // 舊明文：比對後自動升級為 hash
-    if (pwd === stored) {
-      match = true;
-      state.config_passwords[input] = await hashPwd(pwd);
-      saveConfig();
+  if (!pwd)           { err.textContent = '請輸入密碼'; return; }
+  if (pwd.length < 6) { err.textContent = '密碼至少 6 個字元'; return; }
+
+  const email = idToEmail(input);
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, pwd);
+  } catch (e) {
+    // 找不到帳號 → 視為首次登入，自動建立
+    if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+      try {
+        await firebase.auth().createUserWithEmailAndPassword(email, pwd);
+      } catch (e2) {
+        if (e2.code === 'auth/email-already-in-use' || e2.code === 'auth/wrong-password') {
+          err.textContent = '密碼錯誤';
+          document.getElementById('loginPwd').value = '';
+        } else if (e2.code === 'auth/weak-password') {
+          err.textContent = '密碼強度不足（至少 6 字元）';
+        } else {
+          err.textContent = '登入失敗：' + e2.code;
+        }
+        return;
+      }
+    } else if (e.code === 'auth/wrong-password') {
+      err.textContent = '密碼錯誤';
+      document.getElementById('loginPwd').value = '';
+      return;
+    } else if (e.code === 'auth/too-many-requests') {
+      err.textContent = '嘗試次數過多，請稍後再試';
+      return;
+    } else {
+      err.textContent = '登入失敗：' + e.code;
+      return;
     }
   }
-  if (!match) { err.textContent = '密碼錯誤'; document.getElementById('loginPwd').value = ''; return; }
-  loginSuccess(input);
-}
-
-async function confirmSetPwd() {
-  const p1 = document.getElementById('setPwd1').value;
-  const p2 = document.getElementById('setPwd2').value;
-  const err = document.getElementById('setPwdErr');
-  if (!p1 || p1.length < 4) { err.textContent = '密碼至少 4 個字元'; return; }
-  if (p1 !== p2) { err.textContent = '兩次輸入不一致'; return; }
-  if (!state.config_passwords) state.config_passwords = {};
-  state.config_passwords[_pendingLoginId] = await hashPwd(p1);
-  saveConfig();
-  document.getElementById('setPwdOverlay').style.display = 'none';
-  document.getElementById('setPwd1').value = '';
-  document.getElementById('setPwd2').value = '';
-  loginSuccess(_pendingLoginId);
-  _pendingLoginId = null;
+  // 登入成功由 onAuthStateChanged 接手
 }
 
 function loginSuccess(id) {
@@ -904,20 +879,7 @@ function doLogout() {
   if (!confirm('確定登出？')) return;
   localStorage.removeItem('gem_auth');
   sessionStorage.removeItem('gem_verified');
-  location.reload();
-}
-
-function tryAutoLogin() {
-  const id = localStorage.getItem('gem_auth');
-  const ok = sessionStorage.getItem('gem_verified');
-  if (!id || !ALLOWED_IDS.has(id)) return;
-  const myPwd = (state.config_passwords || {})[id] || '';
-  if (ok || !myPwd) {
-    sessionStorage.setItem('gem_verified', '1');
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userIdDisplay').textContent = dcName(id);
-    updateNavVisibility();
-  }
+  firebase.auth().signOut().finally(() => location.reload());
 }
 
 // ════════════════════════════════════════
@@ -1020,85 +982,104 @@ const R = {
   nextId:   () => db.ref('kebab/nextId'),
 };
 
+let _dbSubscribed = false;
+
 function initFirebase(cfg) {
   try {
     const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
     db = firebase.database(app);
     setSyncStatus('connecting');
-    let configReady = false;
 
-    // 訂單（高頻，獨立節點）
-    R.orders().on('value', snap => {
-      state.orders = snap.val() ? Object.values(snap.val()) : [];
-      cacheLocal();
-      renderBoard(); renderPreorder(); renderStats();
-    }, () => setSyncStatus('error'));
-
-    // 今日已取餐（獨立節點）
-    R.comps().on('value', snap => {
-      state.completed = snap.val()
-        ? Object.values(snap.val()).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0))
-        : [];
-      cacheLocal();
-      renderAccounting(); renderStats();
-    });
-
-    // 設定（菜單/食材/食譜/管理員）
-    R.config().on('value', snap => {
-      const d = snap.val();
-      if (d) {
-        state.menu        = d.menu        || state.menu;
-        state.ingredients = d.ingredients || state.ingredients;
-        state.recipes     = d.recipes     || state.recipes;
-        state.admins      = d.admins      || state.admins;
-        state.lastResetDate = d.lastResetDate || state.lastResetDate;
-      }
-      if (d) {
-        if (d.managers)  state.managers          = d.managers;
-        if (d.passwords) state.config_passwords  = d.passwords;
-      }
-      if (!configReady) {
-        configReady = true;
-        setSyncStatus('connected');
-        tryAutoLogin();
-        checkDailyReset();
-        renderAll();
+    // 以 Firebase Auth 狀態決定是否訂閱 DB
+    firebase.auth().onAuthStateChanged(user => {
+      if (user && user.email && user.email.endsWith(EMAIL_DOMAIN)) {
+        const id = emailToId(user.email);
+        if (!ALLOWED_IDS.has(id)) {
+          // email 格式對但不在白名單 → 強制登出
+          firebase.auth().signOut();
+          return;
+        }
+        loginSuccess(id);
+        subscribeDB();
       } else {
-        cacheLocal();
-        renderMenuGrid(); renderMenuEditor(); renderInventory();
-        renderAdmins(); updateNavVisibility();
-        // 食譜 UI 只在設定頁主動切換時刷新，避免 Firebase 同步重置下拉選單
+        _dbSubscribed = false;
+        document.getElementById('loginOverlay').style.display = 'flex';
+        setSyncStatus('connecting');
       }
-    }, () => setSyncStatus('error'));
-
-    // 客人名單
-    db.ref('kebab/customers').on('value', snap => {
-      state.customers = snap.val() || {};
-      renderCustomerList();
     });
-
-    // 公告板
-    db.ref('kebab/announcements').on('value', snap => {
-      state.announcements = snap.val()
-        ? Object.values(snap.val()).sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0) || b.createdAt-a.createdAt)
-        : [];
-      renderBulletin();
-      renderBulletinSidebar();
-    });
-
-    // 歷史記錄
-    R.history().on('value', snap => {
-      state.history = snap.val()
-        ? Object.values(snap.val()).sort((a,b)=>b.date.localeCompare(a.date))
-        : [];
-      cacheLocal();
-      renderAccounting();
-    });
-
   } catch(e) {
     setSyncStatus('error');
     console.error('Firebase init error:', e);
   }
+}
+
+function subscribeDB() {
+  if (_dbSubscribed) return;
+  _dbSubscribed = true;
+  let configReady = false;
+
+  // 訂單（高頻，獨立節點）
+  R.orders().on('value', snap => {
+    state.orders = snap.val() ? Object.values(snap.val()) : [];
+    cacheLocal();
+    renderBoard(); renderPreorder(); renderStats();
+  }, () => setSyncStatus('error'));
+
+  // 今日已取餐（獨立節點）
+  R.comps().on('value', snap => {
+    state.completed = snap.val()
+      ? Object.values(snap.val()).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0))
+      : [];
+    cacheLocal();
+    renderAccounting(); renderStats();
+  });
+
+  // 設定（菜單/食材/食譜/管理員）
+  R.config().on('value', snap => {
+    const d = snap.val();
+    if (d) {
+      state.menu        = d.menu        || state.menu;
+      state.ingredients = d.ingredients || state.ingredients;
+      state.recipes     = d.recipes     || state.recipes;
+      state.admins      = d.admins      || state.admins;
+      state.lastResetDate = d.lastResetDate || state.lastResetDate;
+      if (d.managers) state.managers = d.managers;
+    }
+    if (!configReady) {
+      configReady = true;
+      setSyncStatus('connected');
+      checkDailyReset();
+      renderAll();
+    } else {
+      cacheLocal();
+      renderMenuGrid(); renderMenuEditor(); renderInventory();
+      renderAdmins(); updateNavVisibility();
+    }
+  }, () => setSyncStatus('error'));
+
+  // 客人名單
+  db.ref('kebab/customers').on('value', snap => {
+    state.customers = snap.val() || {};
+    renderCustomerList();
+  });
+
+  // 公告板
+  db.ref('kebab/announcements').on('value', snap => {
+    state.announcements = snap.val()
+      ? Object.values(snap.val()).sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0) || b.createdAt-a.createdAt)
+      : [];
+    renderBulletin();
+    renderBulletinSidebar();
+  });
+
+  // 歷史記錄
+  R.history().on('value', snap => {
+    state.history = snap.val()
+      ? Object.values(snap.val()).sort((a,b)=>b.date.localeCompare(a.date))
+      : [];
+    cacheLocal();
+    renderAccounting();
+  });
 }
 
 function setSyncStatus(s) {
@@ -1138,22 +1119,8 @@ function saveConfig() {
     menu: state.menu, ingredients: state.ingredients,
     recipes: state.recipes, admins: state.admins,
     managers: state.managers || {},
-    passwords: state.config_passwords || {},
     lastResetDate: state.lastResetDate,
   }).catch(fbErr);
-}
-
-function changePassword() {
-  const p1 = document.getElementById('newPwdInput').value;
-  const p2 = document.getElementById('newPwdConfirm').value;
-  const msg = document.getElementById('pwdMsg');
-  if (!p1) { msg.style.color='var(--red)'; msg.textContent='密碼不能為空'; return; }
-  if (p1 !== p2) { msg.style.color='var(--red)'; msg.textContent='兩次輸入不一致'; return; }
-  state.config_password = p1;
-  saveConfig();
-  msg.style.color='var(--green)'; msg.textContent='密碼已更新 ✓';
-  document.getElementById('newPwdInput').value = '';
-  document.getElementById('newPwdConfirm').value = '';
 }
 
 // ── 公告板
@@ -1337,8 +1304,6 @@ function loadState() {
     lastResetDate: getGameDay(), nextId: 1,
     admins:   { '326257870377320450': true },
     managers: {},
-    config_passwords: {},
-    config_password: '',
     customers: {},
     menu:        JSON.parse(JSON.stringify(DEFAULT_MENU)),
     ingredients: JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS)),
@@ -1425,27 +1390,19 @@ function removePrivilege(id) {
 }
 
 function resetUserPwd() {
-  const id = document.getElementById('resetPwdSelect').value;
-  if (!id) return;
-  if (!confirm(`確定清除 ${dcName(id)} 的密碼？他下次登入時需要重新設定。`)) return;
-  if (!state.config_passwords) state.config_passwords = {};
-  delete state.config_passwords[id];
-  saveConfig();
   const msg = document.getElementById('pwdMsg');
-  msg.style.color = 'var(--green)'; msg.textContent = `${dcName(id)} 的密碼已清除 ✓`;
+  msg.style.color = 'var(--muted)';
+  msg.innerHTML = '密碼由 Firebase Auth 管理。請到 <strong>Firebase Console → Authentication → Users</strong> 刪除該員工，他下次登入時即可重新設定密碼。';
 }
 
 function resetAllPwds() {
-  if (!confirm('確定清除所有人的密碼？所有員工下次登入時都需要重新設定密碼。')) return;
-  state.config_passwords = {};
-  saveConfig();
   const msg = document.getElementById('pwdMsg');
-  msg.style.color = 'var(--green)'; msg.textContent = '全員密碼已清除，下次登入時各自設定 ✓';
+  msg.style.color = 'var(--muted)';
+  msg.innerHTML = '密碼由 Firebase Auth 管理。請到 <strong>Firebase Console → Authentication → Users</strong> 全選刪除，員工下次登入時各自重新設定。';
 }
 
 // 舊函式向後相容
 function removeAdmin(id) { removePrivilege(id); }
-function changePassword() {}
 
 // ════════════════════════════════════════
 // TABS

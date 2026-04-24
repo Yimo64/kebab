@@ -153,6 +153,34 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 .lb-rank.silver { color:#b0b8c8; }
 .lb-rank.bronze { color:#cd7f32; }
 .lb-name { font-size:1rem;font-weight:700;flex:1; }
+.lb-card.lb-first {
+  border-color: rgba(240,192,64,0.55);
+  background: linear-gradient(135deg, #111318 60%, #1c1608);
+  position: relative; margin-top: 24px; overflow: visible;
+  animation: lb-glow 2.8s ease-in-out infinite;
+}
+@keyframes lb-glow {
+  0%,100% { box-shadow: 0 0 10px rgba(240,192,64,0.18); }
+  50%      { box-shadow: 0 0 28px rgba(240,192,64,0.45), 0 0 60px rgba(240,192,64,0.1); }
+}
+.lb-first-crown {
+  position: absolute; top: -22px; left: 26px;
+  font-size: 1.4rem; line-height: 1;
+  animation: lb-float 2.2s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(240,192,64,0.7));
+  pointer-events: none; user-select: none;
+}
+@keyframes lb-float {
+  0%,100% { transform: translateY(0) rotate(-8deg); }
+  50%      { transform: translateY(-6px) rotate(8deg); }
+}
+.lb-first-badge {
+  font-size: 0.58rem; font-weight: 800; letter-spacing: 0.6px;
+  color: #f0c040; background: rgba(240,192,64,0.14);
+  border: 1px solid rgba(240,192,64,0.45);
+  border-radius: 20px; padding: 1px 7px;
+  margin-left: 7px; vertical-align: middle;
+}
 .lb-stat { text-align:center;min-width:56px; }
 .lb-stat-val { font-size:1.1rem;font-weight:700; }
 .lb-stat-lbl { font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:1px; }
@@ -1663,9 +1691,11 @@ function renderLeaderboard() {
   el.innerHTML = rows.map(([name, s], i) => {
     const rc = rankClass[i] || '';
     const rankLabel = i === 0 ? '1' : i === 1 ? '2' : i === 2 ? '3' : `${i+1}`;
-    return `<div class="lb-card">
+    const isFirst = i === 0 && _lbScope === 'today' && s.total > 0;
+    return `<div class="lb-card${isFirst ? ' lb-first' : ''}">
+      ${isFirst ? '<div class="lb-first-crown">👑</div>' : ''}
       <div class="lb-rank ${rc}">${rankLabel}</div>
-      <div class="lb-name">${name}</div>
+      <div class="lb-name">${name}${isFirst ? '<span class="lb-first-badge">MVP</span>' : ''}</div>
       <div class="lb-stat">
         <div class="lb-stat-val" style="color:var(--green)">${s.total}</div>
         <div class="lb-stat-lbl">總開單</div>

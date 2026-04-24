@@ -453,6 +453,30 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   cursor: pointer; transition: all 0.13s;
 }
 .login-user-badge:hover { border-color: var(--red); color: var(--red); }
+
+/* ── UI DIALOG ── */
+#uiDialog {
+  position: fixed; inset: 0; z-index: 9995;
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+#uiDialog.open { display: flex; }
+.ui-dlg-card {
+  background: var(--bg-card); border: 1px solid var(--border-hi);
+  border-radius: 16px; padding: 28px 28px 24px; max-width: 400px; width: 100%;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+  animation: dlgIn 0.15s ease;
+}
+@keyframes dlgIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: none; } }
+.ui-dlg-msg { font-size: 0.95rem; color: var(--text); line-height: 1.65; margin-bottom: 20px; }
+#uiDlgInput { width: 100%; box-sizing: border-box; margin-bottom: 20px; }
+.ui-dlg-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-dlg-cancel {
+  padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; transition: all 0.13s; font-family: inherit;
+}
+.btn-dlg-cancel:hover { border-color: var(--border-hi); color: var(--text); }
 </style>
 </head>
 <body>
@@ -699,6 +723,18 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
+<!-- ═══ UI DIALOG ═══ -->
+<div id="uiDialog">
+  <div class="ui-dlg-card">
+    <div id="uiDlgMsg" class="ui-dlg-msg"></div>
+    <input id="uiDlgInput" type="text" onkeydown="if(event.key==='Enter')_dlgOk()">
+    <div class="ui-dlg-btns">
+      <button id="uiDlgCancel" class="btn-dlg-cancel" onclick="_dlgCancel()">取消</button>
+      <button id="uiDlgOk" class="btn-small btn-amber" onclick="_dlgOk()">確定</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ LEADERBOARD TAB ═══ -->
 <div class="tab" id="tab-leaderboard">
   <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
@@ -792,6 +828,44 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 
 <script>
 // ════════════════════════════════════════
+// UI DIALOG (replaces browser alert/confirm/prompt)
+// ════════════════════════════════════════
+let _dlgResolve = null, _dlgMode = 'alert';
+function _openDialog(msg, mode, def) {
+  return new Promise(resolve => {
+    _dlgResolve = resolve; _dlgMode = mode;
+    document.getElementById('uiDlgMsg').textContent = msg;
+    const inp = document.getElementById('uiDlgInput');
+    const cancel = document.getElementById('uiDlgCancel');
+    const ok = document.getElementById('uiDlgOk');
+    inp.style.display = mode === 'prompt' ? '' : 'none';
+    cancel.style.display = mode === 'alert' ? 'none' : '';
+    ok.textContent = mode === 'alert' ? '好' : '確定';
+    if (mode === 'prompt') { inp.value = def || ''; setTimeout(() => inp.focus(), 60); }
+    document.getElementById('uiDialog').classList.add('open');
+  });
+}
+function _dlgOk() {
+  const v = _dlgMode === 'prompt' ? document.getElementById('uiDlgInput').value
+          : _dlgMode === 'confirm' ? true : undefined;
+  document.getElementById('uiDialog').classList.remove('open');
+  if (_dlgResolve) { _dlgResolve(v); _dlgResolve = null; }
+}
+function _dlgCancel() {
+  const v = _dlgMode === 'prompt' ? null : false;
+  document.getElementById('uiDialog').classList.remove('open');
+  if (_dlgResolve) { _dlgResolve(v); _dlgResolve = null; }
+}
+function uiAlert(msg) { return _openDialog(msg, 'alert'); }
+function uiConfirm(msg) { return _openDialog(msg, 'confirm'); }
+function uiPrompt(msg, def) { return _openDialog(msg, 'prompt', def); }
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('uiDialog').classList.contains('open')) return;
+  if (e.key === 'Escape') { e.preventDefault(); _dlgCancel(); }
+  if (e.key === 'Enter' && _dlgMode !== 'prompt') { e.preventDefault(); _dlgOk(); }
+});
+
+// ════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════
 
@@ -876,8 +950,8 @@ function loginSuccess(id) {
   updateNavVisibility();
 }
 
-function doLogout() {
-  if (!confirm('確定登出？')) return;
+async function doLogout() {
+  if (!await uiConfirm('確定登出？')) return;
   localStorage.removeItem('gem_auth');
   sessionStorage.removeItem('gem_verified');
   firebase.auth().signOut().finally(() => location.reload());
@@ -1269,8 +1343,8 @@ function togglePin(id) {
   if (db) db.ref('kebab/announcements/' + id + '/pinned').set(ann.pinned).catch(fbErr);
 }
 
-function deleteAnn(id) {
-  if (!confirm('確定刪除此公告？')) return;
+async function deleteAnn(id) {
+  if (!await uiConfirm('確定刪除此公告？')) return;
   if (db) db.ref('kebab/announcements/' + id).remove().catch(fbErr);
 }
 function saveHistoryDay(day) {
@@ -1379,10 +1453,10 @@ function addAdmin() {
   updateNavVisibility();
 }
 
-function removePrivilege(id) {
+async function removePrivilege(id) {
   const adminCount = Object.keys(state.admins||{}).filter(k=>state.admins[k]&&k!==id).length;
-  if ((state.admins||{})[id] && adminCount === 0) { alert('至少要保留一位管理員'); return; }
-  if (!confirm(`確定移除 ${dcName(id)} 的權限？`)) return;
+  if ((state.admins||{})[id] && adminCount === 0) { uiAlert('至少要保留一位管理員'); return; }
+  if (!await uiConfirm(`確定移除 ${dcName(id)} 的權限？`)) return;
   if (state.admins)   state.admins[id]   = false;
   if (state.managers) state.managers[id] = false;
   saveConfig();
@@ -1643,15 +1717,15 @@ function addCustomer() {
   document.getElementById('newCustName').value = '';
 }
 
-function deleteCustomer(cid) {
-  if (!confirm(`確定刪除客人「${(state.customers[cid]||{}).name || cid}」？`)) return;
+async function deleteCustomer(cid) {
+  if (!await uiConfirm(`確定刪除客人「${(state.customers[cid]||{}).name || cid}」？`)) return;
   if (db) db.ref('kebab/customers/' + cid).remove().catch(fbErr);
   else { delete state.customers[cid]; renderCustomerList(); }
 }
 
-function editCustomerName(cid) {
+async function editCustomerName(cid) {
   const cur = (state.customers[cid] || {}).name || '';
-  const name = prompt('修改客人名稱', cur);
+  const name = await uiPrompt('修改客人名稱', cur);
   if (!name || !name.trim()) return;
   if (db) db.ref('kebab/customers/' + cid + '/name').set(name.trim()).catch(fbErr);
 }
@@ -1761,7 +1835,7 @@ function createOrder() {
 
   if (db) {
     R.nextId().transaction(cur => (cur || 0) + 1, (err, committed, snap) => {
-      if (!committed) { alert('送出失敗，請再試一次'); return; }
+      if (!committed) { uiAlert('送出失敗，請再試一次'); return; }
       const order = { id: 'ORD-' + String(snap.val()).padStart(3, '0'), ...snapshot };
       state.orders.push(order);
       state.nextId = snap.val() + 1;
@@ -1931,8 +2005,8 @@ function moveOrder(id, newStatus) {
   renderAll();
 }
 
-function cancelOrder(id) {
-  if (!confirm('確定取消此訂單？')) return;
+async function cancelOrder(id) {
+  if (!await uiConfirm('確定取消此訂單？')) return;
   removeOrder(id);
   removeCompleted(id);
   renderAll();
@@ -2060,7 +2134,7 @@ function exportHistoryDay(i) {
   });
   lines.push('');
   lines.push(`訂單數：${day.orders}　總營收：$${day.revenue}`);
-  navigator.clipboard.writeText(lines.join('\n')).then(() => alert('已複製！'));
+  navigator.clipboard.writeText(lines.join('\n')).then(() => uiAlert('已複製！'));
 }
 
 function exportAcc() {
@@ -2073,11 +2147,11 @@ function exportAcc() {
   lines.push('');
   const total = state.completed.reduce((s,o) => s+o.total, 0);
   lines.push(`訂單數：${state.completed.length}　總營收：$${total}`);
-  navigator.clipboard.writeText(lines.join('\n')).then(() => alert('已複製到剪貼簿！'));
+  navigator.clipboard.writeText(lines.join('\n')).then(() => uiAlert('已複製到剪貼簿！'));
 }
 
-function clearAcc() {
-  if (!confirm('確定清除今日所有記帳記錄？')) return;
+async function clearAcc() {
+  if (!await uiConfirm('確定清除今日所有記帳記錄？')) return;
   clearAllCompleted();
   renderAll();
 }
@@ -2116,13 +2190,13 @@ function closeDayAs(date) {
   renderAll();
 }
 
-function manualCloseDay() {
-  if (!confirm(`確定手動結算今日（${state.lastResetDate}）並開始新的一天？`)) return;
+async function manualCloseDay() {
+  if (!await uiConfirm(`確定手動結算今日（${state.lastResetDate}）並開始新的一天？`)) return;
   closeDayAs(state.lastResetDate);
 }
 
-function deleteHistory(i) {
-  if (!confirm('確定刪除這筆歷史記錄？')) return;
+async function deleteHistory(i) {
+  if (!await uiConfirm('確定刪除這筆歷史記錄？')) return;
   const day = state.history[i];
   state.history.splice(i, 1);
   if (db) R.histDay(day.date).remove().catch(fbErr);
@@ -2272,8 +2346,8 @@ function removeRecipeIng(menuName, ri) {
   renderRecipes();
 }
 
-function resetIngredients() {
-  if (!confirm('確定重置所有食材和食譜到預設值？（庫存數量也會重置）')) return;
+async function resetIngredients() {
+  if (!await uiConfirm('確定重置所有食材和食譜到預設值？（庫存數量也會重置）')) return;
   state.ingredients = JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
   state.recipes = JSON.parse(JSON.stringify(DEFAULT_RECIPES));
   broadcast();

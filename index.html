@@ -932,6 +932,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <div class="sec-title" style="margin-bottom:0;border:none;flex:1">名單</div>
+      <button class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--muted);padding:3px 10px;font-size:0.72rem" onclick="migrateCustomerPhones()">🔧 修復電話資料</button>
       <input type="text" id="custSearch" placeholder="搜尋 CID / 名字 / 電話…" style="width:200px;font-size:0.8rem;padding:5px 9px" oninput="_custPage=0;renderCustomerList()">
     </div>
     <div id="customerList"></div>
@@ -2018,6 +2019,21 @@ function renderCustomerList() {
 function changeCustPage(dir) {
   _custPage += dir;
   renderCustomerList();
+}
+
+async function migrateCustomerPhones() {
+  const custs = Object.values(state.customers || {});
+  const toMigrate = custs.filter(c => c.name && /^[\d\s\-\+\(\)]+$/.test(c.name.trim()));
+  if (!toMigrate.length) { uiAlert('找不到需要轉移的資料（名字欄沒有純數字的客人）'); return; }
+  const ok = await uiConfirm(`找到 ${toMigrate.length} 筆名字欄為數字的客人，確定移到電話欄並清空名字？`);
+  if (!ok) return;
+  for (const c of toMigrate) {
+    const data = { phone: c.name.trim(), name: '' };
+    if (db) db.ref('kebab/customers/' + c.cid).update(data).catch(fbErr);
+    else if (state.customers[c.cid]) Object.assign(state.customers[c.cid], data);
+  }
+  if (!db) renderCustomerList();
+}
 }
 
 function initSchedSelects() {

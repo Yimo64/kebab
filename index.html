@@ -374,6 +374,13 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 @media (max-width: 480px) { .kanban { grid-template-columns: 1fr; } }
 .fold-btn { padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border-hi); background: var(--bg-deep); color: var(--muted); font-size: 0.75rem; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.12s; }
 .fold-btn:hover, .fold-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(232,145,58,0.08); }
+
+/* ── MENU DRAG ── */
+.menu-drag-row { display:flex; gap:6px; margin-bottom:6px; align-items:center; border-radius:7px; border: 1px solid transparent; transition: background 0.1s, border-color 0.1s; }
+.menu-drag-row.drag-over { background: rgba(232,145,58,0.1); border-color: var(--primary); }
+.menu-drag-row.dragging { opacity: 0.45; }
+.drag-handle { cursor: grab; color: var(--muted); font-size: 1.1rem; padding: 2px 4px; user-select: none; flex-shrink: 0; line-height: 1; }
+.drag-handle:active { cursor: grabbing; color: var(--primary); }
 .mt8 { margin-top: 8px; }
 .mt12 { margin-top: 12px; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
@@ -1950,9 +1957,48 @@ function createOrder() {
 }
 
 // ── Menu editor
+let _menuDragIdx = null;
+
+function menuDragStart(e, i) {
+  _menuDragIdx = i;
+  e.dataTransfer.effectAllowed = 'move';
+  requestAnimationFrame(() => e.currentTarget.classList.add('dragging'));
+}
+function menuDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function menuDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+function menuDrop(e, toIdx) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (_menuDragIdx === null || _menuDragIdx === toIdx) return;
+  const moved = state.menu.splice(_menuDragIdx, 1)[0];
+  state.menu.splice(toIdx, 0, moved);
+  _menuDragIdx = null;
+  broadcast();
+  renderMenuGrid();
+  renderMenuEditor();
+  renderRecipes();
+}
+function menuDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  _menuDragIdx = null;
+  document.querySelectorAll('.menu-drag-row').forEach(r => r.classList.remove('drag-over'));
+}
+
 function renderMenuEditor() {
   document.getElementById('menuEditor').innerHTML = state.menu.map((item, i) =>
-    `<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+    `<div class="menu-drag-row" draggable="true" data-idx="${i}"
+        ondragstart="menuDragStart(event,${i})"
+        ondragover="menuDragOver(event)"
+        ondragleave="menuDragLeave(event)"
+        ondrop="menuDrop(event,${i})"
+        ondragend="menuDragEnd(event)">
+      <span class="drag-handle" title="拖曳排序">⠿</span>
       <input type="text" value="${item.name}" style="flex:2" onchange="state.menu[${i}].name=this.value;broadcast();renderMenuGrid();renderRecipes()">
       <input type="number" value="${item.price}" style="width:80px" onchange="state.menu[${i}].price=parseInt(this.value)||0;broadcast();renderMenuGrid()">
       <button onclick="deleteMenuItem(${i})" style="background:transparent;border:none;color:#555;cursor:pointer;font-size:1rem">✕</button>

@@ -675,7 +675,6 @@ emoji-picker {
   <button class="nav-tab" onclick="switchTab('bulletin')">📢 公告板</button>
   <button class="nav-tab active" onclick="switchTab('pos')">🛒 收銀台</button>
   <button class="nav-tab" onclick="switchTab('board')">📋 訂單看板</button>
-  <button class="nav-tab" onclick="switchTab('preorder')">📅 預定訂單</button>
   <button class="nav-tab" onclick="switchTab('acc')">💰 記帳</button>
   <button class="nav-tab" onclick="switchTab('leaderboard')">🏆 排行榜</button>
   <button class="nav-tab" onclick="switchTab('customers')">👥 客人名單</button>
@@ -808,14 +807,6 @@ emoji-picker {
       <div id="col-done"></div>
     </div>
   </div>
-</div>
-
-<!-- ═══ PREORDER TAB ═══ -->
-<div class="tab" id="tab-preorder">
-  <div style="margin-bottom:14px">
-    <div class="sec-title" style="margin-bottom:0;border:none">預定訂單</div>
-  </div>
-  <div id="preorderList"></div>
 </div>
 
 <!-- ═══ ACCOUNTING TAB ═══ -->
@@ -1326,7 +1317,7 @@ function subscribeDB() {
   R.orders().on('value', snap => {
     state.orders = snap.val() ? Object.values(snap.val()) : [];
     cacheLocal();
-    renderBoard(); renderPreorder(); renderStats();
+    renderBoard(); renderStats();
   }, e => { console.error('[FB] orders error:', e); setSyncStatus('error'); });
 
   // 今日已取餐（獨立節點）
@@ -2333,7 +2324,6 @@ function renderBoard() {
   const groups = { waiting: [], preparing: [], ready: [], done: [] };
 
   state.orders.forEach(o => {
-    if (o.isPreorder && o.status === 'waiting') return; // 預定單等按「開始製作」才進看板
     if (search && !o.id.toLowerCase().includes(search) && !(o.customer||'').toLowerCase().includes(search)) return;
     if (groups[o.status]) groups[o.status].push(o);
   });
@@ -2375,7 +2365,8 @@ function orderCard(o) {
 
   let borderStyle = o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)'
     : o.blacklisted ? 'border-color:#7a1a1a;box-shadow:0 0 8px rgba(180,40,40,0.25)'
-    : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)' : '';
+    : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)'
+    : o.isPreorder ? 'border-color:#4fc3d8;background:rgba(79,195,216,0.06);box-shadow:0 0 8px rgba(79,195,216,0.15)' : '';
 
   let actions = '';
   if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
@@ -3022,7 +3013,6 @@ function renderAll() {
   renderMenuGrid();
   renderMenuEditor();
   renderBoard();
-  renderPreorder();
   renderAccounting();
   renderInventory();
   renderBulletin();

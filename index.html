@@ -827,6 +827,20 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
         <button class="export-btn" onclick="exportAcc()">📋 複製今日記帳文字</button>
         <button class="export-btn" style="margin-top:6px;border-color:var(--primary);color:var(--primary)" onclick="manualCloseDay()">⏹ 手動結算今日</button>
       </div>
+      <div class="card" style="margin-top:12px">
+        <div class="sec-title">補記錄</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input type="text" id="manualCust" placeholder="客人名稱（選填）" style="width:100%">
+          <input type="text" id="manualDesc" placeholder="說明 / 品項（必填）" style="width:100%">
+          <input type="number" id="manualAmt" placeholder="金額" min="0" style="width:100%">
+          <input type="text" id="manualNote" placeholder="備注（選填）" style="width:100%">
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer">
+            <input type="checkbox" id="manualUnbilled" style="accent-color:var(--red)">
+            <span style="color:var(--muted)">⚠ 未開單</span>
+          </label>
+          <button class="btn-small btn-green" style="width:100%;padding:8px" onclick="addManualRecord()">＋ 新增補記錄</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2648,9 +2662,47 @@ function closeDayAs(date) {
   renderAll();
 }
 
+function addManualRecord() {
+  const customer = document.getElementById('manualCust').value.trim();
+  const desc     = document.getElementById('manualDesc').value.trim();
+  const amt      = parseInt(document.getElementById('manualAmt').value) || 0;
+  const note     = document.getElementById('manualNote').value.trim();
+  const unbilled = document.getElementById('manualUnbilled').checked;
+  if (!desc) { uiAlert('請填寫說明／品項'); return; }
+  if (amt <= 0) { uiAlert('請填寫有效金額'); return; }
+  const now = Date.now();
+  const record = {
+    id: 'M-' + now,
+    customer: customer || '補記',
+    customerCid: null,
+    items: [{ name: desc, qty: 1, price: amt }],
+    total: amt,
+    note,
+    unbilled,
+    createdBy: dcName(myId()),
+    createdAt: now,
+    completedAt: now,
+    status: 'done',
+    isManual: true,
+  };
+  state.completed.push(record);
+  if (db) R.comp(record.id).set(record).catch(fbErr);
+  cacheLocal();
+  document.getElementById('manualCust').value = '';
+  document.getElementById('manualDesc').value = '';
+  document.getElementById('manualAmt').value  = '';
+  document.getElementById('manualNote').value = '';
+  document.getElementById('manualUnbilled').checked = false;
+  renderAccounting();
+  renderStats();
+}
+
 async function manualCloseDay() {
   if (!state.lastResetDate) { uiAlert('目前沒有進行中的營業日'); return; }
-  if (!await uiConfirm(`確定手動結算今日（${state.lastResetDate}）？結算後將等到 20:00 才開始新一天。`)) return;
+  const nextDate = new Date(state.lastResetDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+  const nextStr = `${nextDate.getMonth() + 1}/${nextDate.getDate()}`;
+  if (!await uiConfirm(`確定手動結算今日（${state.lastResetDate}）？\n結算後將等到 ${nextStr} 20:00 才開始新一天。`)) return;
   closeDayAs(state.lastResetDate);
 }
 

@@ -2285,11 +2285,12 @@ function deleteMenuItem(i) {
 
 function addMenuRow() {
   if (!Array.isArray(state.menu)) state.menu = [];
-  state.menu.push({ name: '新品項', price: 0 });
-  broadcast();
+  state.menu.push({ name: '', price: 0 });
   renderMenuGrid();
   renderMenuEditor();
   renderRecipes();
+  const inputs = document.querySelectorAll('#menuEditor .menu-drag-row input[type=text]');
+  if (inputs.length) { const last = inputs[inputs.length - 1]; last.focus(); last.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 }
 
 // ════════════════════════════════════════

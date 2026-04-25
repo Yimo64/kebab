@@ -5,7 +5,8 @@
       "Bash(npm --version)",
       "Bash(node *)",
       "Bash(node --check /tmp/k1.js)",
-      "Bash(node --check /tmp/k2.js)"
+      "Bash(node --check /tmp/k2.js)",
+      "Bash(git push *)"
     ]
   }
 }

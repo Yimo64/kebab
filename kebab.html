@@ -2521,14 +2521,16 @@ document.addEventListener('click', () => closeEmojiPicker());
 // ── Menu editor
 let _menuDragIdx = null;
 
-function _menuGlobalDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function _menuGlobalDragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function _menuGlobalDragEnter(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 
 function menuDragStart(e, i) {
   _menuDragIdx = i;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(i));
   requestAnimationFrame(() => e.currentTarget.classList.add('dragging'));
-  document.addEventListener('dragover', _menuGlobalDragOver);
+  document.addEventListener('dragover',  _menuGlobalDragOver);
+  document.addEventListener('dragenter', _menuGlobalDragEnter);
 }
 function menuDragOver(e) {
   e.preventDefault();
@@ -2554,7 +2556,8 @@ function menuDragEnd(e) {
   e.currentTarget.classList.remove('dragging');
   _menuDragIdx = null;
   document.querySelectorAll('.menu-drag-row').forEach(r => r.classList.remove('drag-over'));
-  document.removeEventListener('dragover', _menuGlobalDragOver);
+  document.removeEventListener('dragover',  _menuGlobalDragOver);
+  document.removeEventListener('dragenter', _menuGlobalDragEnter);
 }
 
 function renderMenuEditor() {

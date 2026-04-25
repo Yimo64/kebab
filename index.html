@@ -834,6 +834,8 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
           <input type="text" id="manualDesc" placeholder="說明 / 品項（必填）" style="width:100%">
           <input type="number" id="manualAmt" placeholder="金額" min="0" style="width:100%">
           <input type="text" id="manualNote" placeholder="備注（選填）" style="width:100%">
+          <select id="manualStaff" style="width:100%"></select>
+          <input type="date" id="manualDate" style="width:100%">
           <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer">
             <input type="checkbox" id="manualUnbilled" style="accent-color:var(--red)">
             <span style="color:var(--muted)">⚠ 未開單</span>
@@ -2427,6 +2429,7 @@ function clearDoneOrders() {
 let expandedHistoryIdx = null;
 
 function renderAccounting() {
+  initManualRecordForm();
   // 今日標題
   const _today = getGameDay();
   const _isDeadZone = _today === null;
@@ -2641,19 +2644,23 @@ function checkDailyReset() {
 
 function closeDayAs(date) {
   if (state.completed.length > 0) {
-    const revenue = state.completed.reduce((s, o) => s + o.total, 0);
+    const existingIdx = state.history.findIndex(d => d.date === date);
+    const base = existingIdx >= 0 ? [...state.history[existingIdx].completed] : [];
+    const merged = [...base, ...JSON.parse(JSON.stringify(state.completed))];
+    const revenue = merged.reduce((s, o) => s + o.total, 0);
     const itemCount = {};
-    state.completed.forEach(o => o.items.forEach(i => {
+    merged.forEach(o => o.items.forEach(i => {
       itemCount[i.name] = (itemCount[i.name] || 0) + i.qty;
     }));
     const day = {
       date,
-      completed: JSON.parse(JSON.stringify(state.completed)),
+      completed: merged,
       revenue,
-      orders: state.completed.length,
+      orders: merged.length,
       topItems: Object.entries(itemCount).sort((a,b)=>b[1]-a[1]).slice(0,5),
     };
-    state.history.unshift(day);
+    if (existingIdx >= 0) state.history[existingIdx] = day;
+    else state.history.unshift(day);
     saveHistoryDay(day);
   }
   clearAllCompleted();
@@ -2662,14 +2669,32 @@ function closeDayAs(date) {
   renderAll();
 }
 
+function initManualRecordForm() {
+  const sel = document.getElementById('manualStaff');
+  if (!sel || sel.options.length > 0) return;
+  Object.entries(DC_NAMES).forEach(([id, name]) => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    if (id === myId()) o.selected = true;
+    sel.appendChild(o);
+  });
+  const dateEl = document.getElementById('manualDate');
+  if (dateEl) dateEl.value = state.lastResetDate || getGameDay() || new Date().toISOString().split('T')[0];
+}
+
 function addManualRecord() {
   const customer = document.getElementById('manualCust').value.trim();
   const desc     = document.getElementById('manualDesc').value.trim();
   const amt      = parseInt(document.getElementById('manualAmt').value) || 0;
   const note     = document.getElementById('manualNote').value.trim();
+  const staff    = document.getElementById('manualStaff').value;
+  const dateVal  = document.getElementById('manualDate').value;
   const unbilled = document.getElementById('manualUnbilled').checked;
   if (!desc) { uiAlert('請填寫說明／品項'); return; }
   if (amt <= 0) { uiAlert('請填寫有效金額'); return; }
+  if (!dateVal) { uiAlert('請選擇日期'); return; }
+
+  const ts = new Date(dateVal).getTime() || Date.now();
   const now = Date.now();
   const record = {
     id: 'M-' + now,
@@ -2679,22 +2704,49 @@ function addManualRecord() {
     total: amt,
     note,
     unbilled,
-    createdBy: dcName(myId()),
-    createdAt: now,
-    completedAt: now,
+    createdBy: staff || dcName(myId()),
+    createdAt: ts,
+    completedAt: ts,
     status: 'done',
     isManual: true,
   };
-  state.completed.push(record);
-  if (db) R.comp(record.id).set(record).catch(fbErr);
-  cacheLocal();
+
+  // 判斷是補今天還是補歷史
+  const today = getGameDay();
+  if (dateVal === state.lastResetDate || dateVal === today) {
+    // 補今天
+    state.completed.push(record);
+    if (db) R.comp(record.id).set(record).catch(fbErr);
+    cacheLocal();
+    renderAccounting();
+    renderStats();
+  } else {
+    // 補歷史日期：直接 merge 進 history
+    const existingIdx = state.history.findIndex(d => d.date === dateVal);
+    if (existingIdx >= 0) {
+      const existing = state.history[existingIdx];
+      existing.completed.push(record);
+      existing.revenue += amt;
+      existing.orders  += 1;
+      const ic = {};
+      existing.completed.forEach(o => o.items.forEach(i => { ic[i.name] = (ic[i.name]||0) + i.qty; }));
+      existing.topItems = Object.entries(ic).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      saveHistoryDay(existing);
+    } else {
+      const ic = {}; ic[desc] = 1;
+      const day = { date: dateVal, completed: [record], revenue: amt, orders: 1, topItems: [[desc, 1]] };
+      state.history.unshift(day);
+      saveHistoryDay(day);
+    }
+    cacheLocal();
+    renderAccounting();
+  }
+
   document.getElementById('manualCust').value = '';
   document.getElementById('manualDesc').value = '';
   document.getElementById('manualAmt').value  = '';
   document.getElementById('manualNote').value = '';
   document.getElementById('manualUnbilled').checked = false;
-  renderAccounting();
-  renderStats();
 }
 
 async function manualCloseDay() {

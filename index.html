@@ -1315,9 +1315,9 @@ function subscribeDB() {
   R.config().on('value', snap => {
     const d = snap.val();
     if (d) {
-      state.menu        = d.menu        || state.menu;
-      state.ingredients = d.ingredients || state.ingredients;
-      state.recipes     = d.recipes     || state.recipes;
+      state.menu        = d.menu        || state.menu        || JSON.parse(JSON.stringify(DEFAULT_MENU));
+      state.ingredients = d.ingredients || state.ingredients || JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
+      state.recipes     = d.recipes     || state.recipes     || JSON.parse(JSON.stringify(DEFAULT_RECIPES));
       state.admins      = d.admins      || state.admins;
       state.lastResetDate = d.lastResetDate || state.lastResetDate;
       if (d.managers) state.managers = d.managers;
@@ -1390,14 +1390,25 @@ function clearAllCompleted() {
   cacheLocal();
   if (db) R.comps().remove().catch(fbErr);
 }
+// saveConfig：只存管理設定，不碰菜單
 function saveConfig() {
   cacheLocal();
   if (!configReady) return;
   if (db) R.config().update({
-    menu: state.menu, ingredients: state.ingredients,
-    recipes: state.recipes, admins: state.admins,
+    admins: state.admins,
     managers: state.managers || {},
     lastResetDate: state.lastResetDate,
+  }).catch(fbErr);
+}
+
+// saveMenu：只在明確編輯菜單/食材/食譜時才呼叫
+function saveMenu() {
+  cacheLocal();
+  if (!configReady) return;
+  if (db) R.config().update({
+    menu: state.menu,
+    ingredients: state.ingredients,
+    recipes: state.recipes,
   }).catch(fbErr);
 }
 
@@ -1555,8 +1566,8 @@ function saveHistoryDay(day) {
 }
 function fbErr(e) { setSyncStatus('error'); console.error(e); }
 
-// broadcast → 向後相容，設定類變更都走 saveConfig
-function broadcast() { saveConfig(); }
+// broadcast → 只寫菜單/食材/食譜，不寫管理設定
+function broadcast() { saveMenu(); }
 
 // ════════════════════════════════════════
 // STATE
@@ -2234,6 +2245,7 @@ function menuDragEnd(e) {
 }
 
 function renderMenuEditor() {
+  if (!Array.isArray(state.menu)) state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
   document.getElementById('menuEditor').innerHTML = state.menu.map((item, i) => {
     const curEmoji = item.emoji || getEmoji(item.name);
     const hasCustom = !!item.emoji;
@@ -2272,6 +2284,7 @@ function deleteMenuItem(i) {
 }
 
 function addMenuRow() {
+  if (!Array.isArray(state.menu)) state.menu = [];
   state.menu.push({ name: '新品項', price: 0 });
   broadcast();
   renderMenuGrid();
@@ -2391,7 +2404,7 @@ function moveOrder(id, newStatus) {
 
   if (old !== 'preparing' && newStatus === 'preparing') {
     deductInventory(o);
-    saveConfig(); // 食材庫存變動
+    saveMenu(); // 食材庫存變動
   }
   if (newStatus === 'done' && old !== 'done') {
     o.completedAt = Date.now();

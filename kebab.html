@@ -2521,11 +2521,12 @@ document.addEventListener('click', () => closeEmojiPicker());
 // ── Menu editor
 let _menuDragIdx = null;
 
-function _menuGlobalDragOver(e) { e.preventDefault(); }
+function _menuGlobalDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 
 function menuDragStart(e, i) {
   _menuDragIdx = i;
   e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(i));
   requestAnimationFrame(() => e.currentTarget.classList.add('dragging'));
   document.addEventListener('dragover', _menuGlobalDragOver);
 }

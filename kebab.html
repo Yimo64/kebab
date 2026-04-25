@@ -1897,8 +1897,11 @@ function updateNavVisibility() {
   document.getElementById('navSettings').style.display = showSettings ? '' : 'none';
   const el = document.getElementById('settingsAdminSection');
   if (el) el.style.display = isAdmin() ? '' : 'none';
+  const isSpecial = myId() === '325582420650885120';
   const billedLabel = document.getElementById('billedLabel');
-  if (billedLabel) billedLabel.textContent = myId() === '325582420650885120' ? '???我有開單嗎' : '已開單';
+  if (billedLabel) billedLabel.textContent = isSpecial ? '???我有開單嗎' : '已開單';
+  const posBilled = document.getElementById('posBilled');
+  if (posBilled && isSpecial) posBilled.checked = true;
 }
 
 function renderAdmins() {
@@ -2383,7 +2386,7 @@ function clearPOS() {
   _selectedCustCid = null;
   hideCustDrop();
   document.getElementById('posNote').value = '';
-  document.getElementById('posBilled').checked = false;
+  document.getElementById('posBilled').checked = myId() === '325582420650885120';
   document.getElementById('posIsPreorder').checked = false;
   document.getElementById('preorderTimeRow').style.display = 'none';
   document.getElementById('posDiscount').value = '0';
@@ -2410,8 +2413,9 @@ function createOrder() {
     customer,
     customerCid: _selectedCustCid || null,
     blacklisted: !!(_selectedCustCid && (state.customers[_selectedCustCid] || {}).blacklist),
-    createdBy:  dcName(myId()),
-    isPreorder: !!isPreorder,
+    createdBy:   dcName(myId()),
+    createdById: myId(),
+    isPreorder:  !!isPreorder,
     scheduledAt: scheduledAt || null,
     status:     'waiting',
     createdAt:  Date.now(),
@@ -2616,10 +2620,12 @@ function orderCard(o) {
     itemsHtml = `<div class="oc-items">${o.items.map(i=>`${i.name}×${i.qty}`).join('、')}</div>`;
   }
 
+  const isSpecialUser = o.createdById === '325582420650885120';
   let borderStyle = o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)'
     : o.blacklisted ? 'border-color:#7a1a1a;box-shadow:0 0 8px rgba(180,40,40,0.25)'
     : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)'
-    : o.isPreorder ? 'border-color:#4fc3d8;background:rgba(79,195,216,0.06);box-shadow:0 0 8px rgba(79,195,216,0.15)' : '';
+    : o.isPreorder ? 'border-color:#4fc3d8;background:rgba(79,195,216,0.06);box-shadow:0 0 8px rgba(79,195,216,0.15)'
+    : isSpecialUser ? 'border-color:#a855f7;background:rgba(168,85,247,0.05);box-shadow:0 0 8px rgba(168,85,247,0.2)' : '';
 
   let actions = '';
   if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
@@ -2628,7 +2634,8 @@ function orderCard(o) {
   if (o.status === 'done')      actions = `<button class="oc-btn ob-prev" style="background:#21262d;color:#8b949e" onclick="moveOrder('${o.id}','ready')">退回完成</button>`;
 
   return `<div class="oc" id="card-${o.id}" style="${borderStyle}">
-    ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between">
+    ${isSpecialUser ? `<div style="background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:0.5px;text-align:center">🤔 我到底有沒有開單</div>` : ''}
+    ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:${isSpecialUser?'0':'-10px'} -10px 8px;border-radius:${isSpecialUser?'0':'7px 7px'} 0 0;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between">
       <span>⚠ 未開單</span>
       <button onclick="markAsBilled('${o.id}')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:1px 8px;font-size:0.68rem;font-weight:700;cursor:pointer;letter-spacing:0.5px">✓ 已開單</button>
     </div>` : ''}

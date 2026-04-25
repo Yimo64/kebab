@@ -1501,6 +1501,14 @@ function saveOrder(order) {
   cacheLocal();
   if (db) R.order(order.id).set(order).catch(fbErr);
 }
+
+function markAsBilled(id) {
+  const o = state.orders.find(o => o.id === id);
+  if (!o) return;
+  o.unbilled = false;
+  o.note = (o.note || '').replace(/^⚠️? 未開單｜?/, '').trim();
+  saveOrder(o);
+}
 function removeOrder(id) {
   state.orders = state.orders.filter(o => o.id !== id);
   cacheLocal();
@@ -2620,7 +2628,10 @@ function orderCard(o) {
   if (o.status === 'done')      actions = `<button class="oc-btn ob-prev" style="background:#21262d;color:#8b949e" onclick="moveOrder('${o.id}','ready')">退回完成</button>`;
 
   return `<div class="oc" id="card-${o.id}" style="${borderStyle}">
-    ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;text-align:center">⚠ 未開單</div>` : ''}
+    ${o.unbilled ? `<div style="background:#e84040;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between">
+      <span>⚠ 未開單</span>
+      <button onclick="markAsBilled('${o.id}')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:1px 8px;font-size:0.68rem;font-weight:700;cursor:pointer;letter-spacing:0.5px">✓ 已開單</button>
+    </div>` : ''}
     ${o.blacklisted ? `<div style="background:#5a1010;color:#ffaaaa;font-size:0.72rem;font-weight:700;padding:4px 10px;margin:${o.unbilled?'0':'-10px'} -10px 8px;border-radius:${o.unbilled?'0':'7px 7px'} 0 0;letter-spacing:1px;text-align:center">⛔ 黑名單客人</div>` : ''}
     ${allChecked ? `<div id="all-done-${o.id}" style="background:rgba(61,186,110,0.15);color:var(--green);font-size:0.7rem;font-weight:700;padding:3px 10px;margin:-10px -10px 8px;border-radius:7px 7px 0 0;text-align:center;letter-spacing:1px">✓ 全部備妥</div>` : `<div id="all-done-${o.id}" style="display:none"></div>`}
     <div class="oc-top">

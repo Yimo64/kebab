@@ -7,6 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -570,6 +571,24 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 }
 .btn-dlg-cancel:hover { border-color: var(--border-hi); color: var(--text); }
 
+/* ── EMOJI PICKER OVERLAY ── */
+#emojiPickerOverlay {
+  position: fixed; inset: 0; z-index: 9800;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+  display: none; align-items: center; justify-content: center;
+}
+#emojiPickerOverlay.open { display: flex; }
+emoji-picker {
+  --background: #111318; --border-color: #1d1f2b;
+  --category-button-active-background: rgba(232,145,58,0.3);
+  --category-button-color: #6b7090; --emoji-size: 1.45rem;
+  --input-border-radius: 7px; --input-border-color: #2a2d3e;
+  --input-background: #08090d; --input-font-color: #eceef5;
+  --placeholder-color: #6b7090; --outline-color: rgba(232,145,58,0.5);
+  border-radius: 14px; border: 1px solid #2a2d3e;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+}
+
 /* ── CUST EDIT MODAL ── */
 #custEditModal {
   position: fixed; inset: 0; z-index: 9990;
@@ -892,6 +911,11 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   </div>
 </div>
 
+<!-- ═══ EMOJI PICKER OVERLAY ═══ -->
+<div id="emojiPickerOverlay" onclick="if(event.target===this)closeEmojiPicker()">
+  <emoji-picker></emoji-picker>
+</div>
+
 <!-- ═══ CUST EDIT MODAL ═══ -->
 <div id="custEditModal" onclick="if(event.target===this)closeCustEdit()">
   <div class="cust-edit-card">
@@ -997,7 +1021,10 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
     <div class="card">
       <div class="sec-title">菜單品項設定</div>
       <div id="menuEditor"></div>
-      <button class="btn-small btn-green mt8" onclick="addMenuRow()">＋ 新增品項</button>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn-small btn-green" onclick="addMenuRow()">＋ 新增品項</button>
+        <button class="btn-small" style="background:rgba(74,158,255,0.12);border:1px solid rgba(74,158,255,0.4);color:var(--blue)" onclick="updateDefaultMenu()">📌 更新為默認菜單</button>
+      </div>
     </div>
     <div class="card">
       <div class="sec-title">食材設定</div>
@@ -1315,7 +1342,8 @@ function subscribeDB() {
   R.config().on('value', snap => {
     const d = snap.val();
     if (d) {
-      state.menu        = d.menu        || state.menu        || JSON.parse(JSON.stringify(DEFAULT_MENU));
+      const _localMenuBackup = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
+      state.menu        = d.menu        || d.menuDefault || state.menu        || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
       state.ingredients = d.ingredients || state.ingredients || JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
       state.recipes     = d.recipes     || state.recipes     || JSON.parse(JSON.stringify(DEFAULT_RECIPES));
       state.admins      = d.admins      || state.admins;
@@ -2177,29 +2205,28 @@ const FOOD_EMOJIS = [
   '🙈','🫦','👅','💋','🔞','🍆','🍑','🍌','🌭','💦',
   '🥵','😏','🦆','🐸','🗿','🫃','🧌','🪄'
 ];
-let _emojiPickerOpen = null;
+let _emojiTargetIdx = null;
 
 function toggleEmojiPicker(i, e) {
   e.stopPropagation();
-  if (_emojiPickerOpen === i) { closeEmojiPicker(); return; }
-  closeEmojiPicker();
-  _emojiPickerOpen = i;
-  const el = document.getElementById('epick-' + i);
-  if (el) el.style.display = 'grid';
+  _emojiTargetIdx = i;
+  const overlay = document.getElementById('emojiPickerOverlay');
+  const picker  = overlay.querySelector('emoji-picker');
+  overlay.classList.add('open');
+  picker.removeEventListener('emoji-click', _onEmojiClick);
+  picker.addEventListener('emoji-click', _onEmojiClick);
 }
-function closeEmojiPicker() {
-  if (_emojiPickerOpen !== null) {
-    const el = document.getElementById('epick-' + _emojiPickerOpen);
-    if (el) el.style.display = 'none';
-    _emojiPickerOpen = null;
-  }
-}
-function selectEmoji(i, emoji, e) {
-  e.stopPropagation();
-  state.menu[i].emoji = emoji;
+function _onEmojiClick(ev) {
+  if (_emojiTargetIdx === null) return;
+  state.menu[_emojiTargetIdx].emoji = ev.detail.unicode;
   broadcast();
   renderMenuGrid();
   renderMenuEditor();
+  closeEmojiPicker();
+}
+function closeEmojiPicker() {
+  document.getElementById('emojiPickerOverlay').classList.remove('open');
+  _emojiTargetIdx = null;
 }
 function clearEmoji(i, e) {
   e.stopPropagation();
@@ -2208,7 +2235,15 @@ function clearEmoji(i, e) {
   renderMenuGrid();
   renderMenuEditor();
 }
-document.addEventListener('click', () => closeEmojiPicker());
+
+async function updateDefaultMenu() {
+  if (!Array.isArray(state.menu) || !state.menu.length) { uiAlert('菜單是空的'); return; }
+  const ok = await uiConfirm(`確定將目前 ${state.menu.length} 個品項設為默認菜單？往後 Firebase 遺失時會自動還原。`);
+  if (!ok) return;
+  localStorage.setItem('gem_defaultMenu', JSON.stringify(state.menu));
+  if (db && configReady) R.config().update({ menuDefault: state.menu }).catch(fbErr);
+  uiAlert('✅ 已更新為默認菜單');
+}
 
 // ── Menu editor
 let _menuDragIdx = null;
@@ -2249,11 +2284,8 @@ function renderMenuEditor() {
   document.getElementById('menuEditor').innerHTML = state.menu.map((item, i) => {
     const curEmoji = item.emoji || getEmoji(item.name);
     const hasCustom = !!item.emoji;
-    const emojiOpts = FOOD_EMOJIS.map(e =>
-      `<button class="emoji-opt${item.emoji===e?' selected':''}" onclick="selectEmoji(${i},'${e}',event)" title="${e}">${e}</button>`
-    ).join('');
     const autoBtn = hasCustom
-      ? `<button class="emoji-opt emoji-auto-btn" onclick="clearEmoji(${i},event)" title="恢復自動偵測">↺自動</button>`
+      ? `<button class="emoji-opt emoji-auto-btn" onmousedown="event.stopPropagation();event.preventDefault();clearEmoji(${i},event)" title="恢復自動偵測" style="font-size:0.65rem;padding:2px 5px">↺</button>`
       : '';
     return `<div class="menu-drag-row" draggable="true" data-idx="${i}"
         ondragstart="menuDragStart(event,${i})"
@@ -2262,11 +2294,9 @@ function renderMenuEditor() {
         ondrop="menuDrop(event,${i})"
         ondragend="menuDragEnd(event)">
       <span class="drag-handle" title="拖曳排序">⠿</span>
-      <div class="emoji-picker-wrap">
+      <div class="emoji-picker-wrap" style="display:flex;gap:3px">
         <button class="emoji-pick-btn" onclick="toggleEmojiPicker(${i},event)" title="選擇 Emoji">${curEmoji}</button>
-        <div id="epick-${i}" class="emoji-grid-drop" style="display:none">
-          ${emojiOpts}${autoBtn}
-        </div>
+        ${autoBtn}
       </div>
       <input type="text" value="${item.name}" style="flex:2" onchange="state.menu[${i}].name=this.value;broadcast();renderMenuGrid();renderRecipes()">
       <input type="number" value="${item.price}" style="width:80px" onchange="state.menu[${i}].price=parseInt(this.value)||0;broadcast();renderMenuGrid()">
@@ -2286,6 +2316,7 @@ function deleteMenuItem(i) {
 function addMenuRow() {
   if (!Array.isArray(state.menu)) state.menu = [];
   state.menu.push({ name: '', price: 0 });
+  broadcast();
   renderMenuGrid();
   renderMenuEditor();
   renderRecipes();

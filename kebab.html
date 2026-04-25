@@ -451,6 +451,52 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 }
 .preorder-time { font-size: 0.7rem; color: var(--blue); margin-top: 2px; }
 
+/* ── CHANGELOG MODAL ── */
+#changelogModal {
+  position: fixed; inset: 0; z-index: 9991;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+#changelogModal.open { display: flex; }
+.changelog-card {
+  background: var(--bg-card); border: 1px solid var(--border-hi);
+  border-radius: 16px; padding: 28px; max-width: 520px; width: 100%;
+  max-height: 80vh; display: flex; flex-direction: column;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7); position: relative;
+}
+.changelog-close {
+  position: absolute; top: 14px; right: 16px;
+  background: transparent; border: none; color: var(--muted);
+  font-size: 1rem; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+.changelog-close:hover { color: var(--text); background: var(--border); }
+.changelog-title { font-size: 1.1rem; font-weight: 800; color: var(--text); margin-bottom: 18px; }
+.changelog-body { overflow-y: auto; flex: 1; }
+.changelog-body::-webkit-scrollbar { width: 4px; }
+.changelog-body::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+.cl-group { margin-bottom: 20px; }
+.cl-date {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+.cl-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 5px 0; font-size: 0.84rem; color: #c0c4d8; line-height: 1.5;
+}
+.cl-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--primary); flex-shrink: 0; margin-top: 7px;
+}
+.nav-changelog-btn {
+  margin-left: auto; padding: 6px 12px; border-radius: 20px;
+  border: 1px solid var(--border-hi); background: transparent;
+  color: var(--muted); font-size: 0.72rem; cursor: pointer;
+  transition: all 0.13s; white-space: nowrap; letter-spacing: 0.3px;
+}
+.nav-changelog-btn:hover { color: var(--text); border-color: var(--primary); }
+
 /* ── FIREBASE SETUP ── */
 #fbSetupOverlay {
   position: fixed; inset: 0; z-index: 9998;
@@ -822,6 +868,7 @@ function customPrompt(msg, defaultVal) {
   <button class="nav-tab" onclick="switchTab('leaderboard')">🏆 排行榜</button>
   <button class="nav-tab" onclick="switchTab('customers')">👥 客人名單</button>
   <button class="nav-tab" id="navSettings" onclick="switchTab('settings')" style="display:none">⚙️ 設定</button>
+  <button class="nav-changelog-btn" onclick="document.getElementById('changelogModal').classList.add('open')">📋 更新記錄</button>
   <div class="fb-status connecting" id="syncInfo">⟳ 連線中</div>
   <div class="login-user-badge" id="userBadge" onclick="doLogout()" title="點擊登出">
     <span>👤</span><span id="userIdDisplay">—</span><span style="font-size:0.65rem">登出</span>
@@ -1033,6 +1080,42 @@ function customPrompt(msg, defaultVal) {
   <div class="ann-modal-card">
     <button class="ann-modal-close" onclick="closeAnn()">✕</button>
     <div id="annModalContent"></div>
+  </div>
+</div>
+
+<!-- ═══ CHANGELOG MODAL ═══ -->
+<div id="changelogModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="changelog-card">
+    <button class="changelog-close" onclick="document.getElementById('changelogModal').classList.remove('open')">✕</button>
+    <div class="changelog-title">📋 更新記錄</div>
+    <div class="changelog-body">
+
+      <div class="cl-group">
+        <div class="cl-date">2026 · 04 · 25</div>
+        <div class="cl-item"><div class="cl-dot"></div><div>公告可單獨開啟「收銀台顯示」，讓點餐的客人也能在收銀台頁面看到公告內容，支援多則公告同時顯示及收合</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>預定訂單下單後直接出現在訂單看板，以水藍色卡片區分，不再需要切換到獨立分頁</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>菜單介面大幅優化，支援 Emoji 圖示、拖曳排列品項順序</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>黑名單功能強化，新增客人搜尋、客人電話欄位</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>手動結算功能，可在任意時間點強制結算當日帳目</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>菜單多裝置即時同步</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>營業記帳邏輯優化（折扣、多員工統計）</div></div>
+      </div>
+
+      <div class="cl-group">
+        <div class="cl-date">2026 · 04 · 24</div>
+        <div class="cl-item"><div class="cl-dot"></div><div>排行榜 2.0：分今日 / 本週 / 全部，新增最常購買品項及「偷吃王」統計</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>客人名單系統：CID 識別碼、消費記錄、快速搜尋</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>公告板：支援置頂、分類，點擊展開完整內容</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>Firebase 身份驗證，員工需登入才能使用，管理員有額外操作權限</div></div>
+        <div class="cl-item"><div class="cl-dot"></div><div>員工存取權限管理，保護系統設定資料</div></div>
+      </div>
+
+      <div class="cl-group">
+        <div class="cl-date">2026 · 04 · 23</div>
+        <div class="cl-item"><div class="cl-dot"></div><div>系統初始建立：收銀台點餐、訂單看板、記帳、預定訂單</div></div>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -3125,7 +3208,7 @@ renderAll();
 renderPOS();
 setLbScope('today');
 setInterval(checkDailyReset, 60000);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnn(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAnn(); document.getElementById('changelogModal').classList.remove('open'); } });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('custEditModal').classList.contains('open')) {
     e.preventDefault(); closeCustEdit();

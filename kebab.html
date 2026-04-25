@@ -328,6 +328,49 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 .mt12 { margin-top: 12px; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
 
+/* ── POS ANNOUNCEMENT BANNER ── */
+#posBanner { margin-bottom: 14px; }
+.pos-banner-wrap {
+  background: linear-gradient(135deg, #13151f, #111318);
+  border: 1px solid rgba(232,145,58,0.4);
+  border-radius: 12px; overflow: hidden;
+}
+.pos-banner-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 14px; border-bottom: 1px solid rgba(232,145,58,0.2);
+  background: rgba(232,145,58,0.06);
+}
+.pos-banner-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--primary);
+}
+.pos-banner-toggle {
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; font-size: 0.75rem; padding: 2px 6px;
+  border-radius: 4px; transition: color 0.13s;
+}
+.pos-banner-toggle:hover { color: var(--text); }
+.pos-banner-list { max-height: 160px; overflow-y: auto; }
+.pos-banner-list::-webkit-scrollbar { width: 4px; }
+.pos-banner-list::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+.pos-ann-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+}
+.pos-ann-row:last-child { border-bottom: none; }
+.pos-ann-row.is-pinned { background: rgba(232,145,58,0.04); }
+.pos-ann-title { font-size: 0.88rem; font-weight: 700; color: var(--text); line-height: 1.4; }
+.pos-ann-body  { font-size: 0.78rem; color: #a0a4bc; margin-top: 3px; line-height: 1.5; white-space: pre-wrap; }
+.pos-showonpos-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.68rem; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; border: none; cursor: pointer; transition: all 0.13s;
+}
+.pos-showonpos-btn.on  { background: rgba(74,158,255,0.2); color: var(--blue); border: 1px solid rgba(74,158,255,0.4); }
+.pos-showonpos-btn.off { background: transparent; color: var(--muted); border: 1px solid var(--border-hi); }
+.pos-showonpos-btn.on:hover  { background: rgba(74,158,255,0.3); }
+.pos-showonpos-btn.off:hover { background: var(--border); color: var(--text); }
+
 /* ── BULLETIN BOARD ── */
 .ann-card {
   background: var(--bg-card); border: 1px solid var(--border);
@@ -775,7 +818,6 @@ function customPrompt(msg, defaultVal) {
   <button class="nav-tab" onclick="switchTab('bulletin')">📢 公告板</button>
   <button class="nav-tab active" onclick="switchTab('pos')">🛒 收銀台</button>
   <button class="nav-tab" onclick="switchTab('board')">📋 訂單看板</button>
-  <button class="nav-tab" onclick="switchTab('preorder')">📅 預定訂單</button>
   <button class="nav-tab" onclick="switchTab('acc')">💰 記帳</button>
   <button class="nav-tab" onclick="switchTab('leaderboard')">🏆 排行榜</button>
   <button class="nav-tab" onclick="switchTab('customers')">👥 客人名單</button>
@@ -796,6 +838,7 @@ function customPrompt(msg, defaultVal) {
 
 <!-- ═══ POS TAB ═══ -->
 <div class="tab active" id="tab-pos">
+  <div id="posBanner"></div>
   <div class="pos-layout">
     <div>
       <div class="sec-title">選擇品項</div>
@@ -909,14 +952,6 @@ function customPrompt(msg, defaultVal) {
   </div>
 </div>
 
-<!-- ═══ PREORDER TAB ═══ -->
-<div class="tab" id="tab-preorder">
-  <div style="margin-bottom:14px">
-    <div class="sec-title" style="margin-bottom:0;border:none">預定訂單</div>
-  </div>
-  <div id="preorderList"></div>
-</div>
-
 <!-- ═══ ACCOUNTING TAB ═══ -->
 <div class="tab" id="tab-acc">
   <div class="acc-layout">
@@ -970,9 +1005,12 @@ function customPrompt(msg, defaultVal) {
   <!-- 新增公告（管理員） -->
   <div class="ann-compose" id="annCompose" style="display:none">
     <div class="sec-title">新增公告</div>
-    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--muted);cursor:pointer">
         <input type="checkbox" id="annPinned" style="accent-color:var(--primary)"> 📌 置頂
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="annShowOnPos" style="accent-color:var(--blue)"> 📺 收銀台顯示
       </label>
     </div>
     <input type="text" id="annTitle" placeholder="公告標題" style="width:100%;margin-bottom:8px">
@@ -1333,7 +1371,7 @@ function subscribeDB() {
   R.orders().on('value', snap => {
     state.orders = snap.val() ? Object.values(snap.val()) : [];
     cacheLocal();
-    renderBoard(); renderPreorder(); renderStats();
+    renderBoard(); renderStats();
   }, () => setSyncStatus('error'));
 
   // 今日已取餐（獨立節點）
@@ -1382,6 +1420,7 @@ function subscribeDB() {
       : [];
     renderBulletin();
     renderBulletinSidebar();
+    renderPosBanner();
   });
 
   // 歷史記錄
@@ -1501,6 +1540,7 @@ function renderBulletin() {
     ? `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">目前沒有公告</div>`
     : anns.map(a => {
         const timeStr = new Date(a.createdAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        const posBtn = `<button class="pos-showonpos-btn ${a.showOnPos?'on':'off'}" onclick="event.stopPropagation();toggleShowOnPos('${a.id}')">${a.showOnPos?'📺 收銀台顯示中':'📺 收銀台'}</button>`;
         if (a.pinned) {
           return `<div class="ann-card pinned">
             <div style="margin-bottom:6px"><span class="ann-badge badge-pin">📌 置頂</span></div>
@@ -1508,7 +1548,8 @@ function renderBulletin() {
             <div class="ann-body">${a.content}</div>
             <div class="ann-meta" style="margin-top:10px">
               <span>👤 ${a.author} · ${timeStr}</span>
-              <div style="display:flex;gap:6px">
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                ${posBtn}
                 <button onclick="openAnn('${a.id}');editAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border-hi);color:var(--text);padding:3px 8px;font-size:0.7rem">編輯</button>
                 <button onclick="togglePin('${a.id}')" class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--primary);padding:3px 8px;font-size:0.7rem">取消置頂</button>
                 <button onclick="deleteAnn('${a.id}')" class="btn-small" style="background:transparent;border:1px solid rgba(232,64,64,0.4);color:var(--red);padding:3px 8px;font-size:0.7rem">刪除</button>
@@ -1520,7 +1561,10 @@ function renderBulletin() {
           <div class="ann-title">${a.title}</div>
           <div class="ann-meta" style="margin-top:6px">
             <span>👤 ${a.author} · ${timeStr}</span>
-            <span style="font-size:0.7rem;color:var(--muted)">點擊查看 ›</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              ${posBtn}
+              <span style="font-size:0.7rem;color:var(--muted)">點擊查看 ›</span>
+            </div>
           </div>
         </div>`;
       }).join('');
@@ -1573,14 +1617,16 @@ function postAnnouncement() {
   const id = 'ann_' + Date.now();
   const ann = {
     id, title, content,
-    pinned:   document.getElementById('annPinned').checked,
-    author:   dcName(myId()),
-    createdAt: Date.now(),
+    pinned:     document.getElementById('annPinned').checked,
+    showOnPos:  document.getElementById('annShowOnPos').checked,
+    author:     dcName(myId()),
+    createdAt:  Date.now(),
   };
   if (db) db.ref('kebab/announcements/' + id).set(ann).catch(fbErr);
   document.getElementById('annTitle').value = '';
   document.getElementById('annBody').value = '';
   document.getElementById('annPinned').checked = false;
+  document.getElementById('annShowOnPos').checked = false;
   document.getElementById('annCompose').style.display = 'none';
   document.getElementById('annNewBtn').style.display = '';
 }
@@ -1590,6 +1636,43 @@ function togglePin(id) {
   if (!ann) return;
   ann.pinned = !ann.pinned;
   if (db) db.ref('kebab/announcements/' + id + '/pinned').set(ann.pinned).catch(fbErr);
+}
+
+function toggleShowOnPos(id) {
+  const ann = (state.announcements||[]).find(a=>a.id===id);
+  if (!ann) return;
+  ann.showOnPos = !ann.showOnPos;
+  if (db) db.ref('kebab/announcements/' + id + '/showOnPos').set(ann.showOnPos).catch(fbErr);
+}
+
+function renderPosBanner() {
+  const el = document.getElementById('posBanner');
+  if (!el) return;
+  const anns = (state.announcements || []).filter(a => a.showOnPos);
+  if (anns.length === 0) { el.innerHTML = ''; return; }
+  const collapsed = el.dataset.collapsed === '1';
+  el.innerHTML = `
+    <div class="pos-banner-wrap">
+      <div class="pos-banner-head">
+        <span class="pos-banner-label">📢 公告 · ${anns.length} 則</span>
+        <button class="pos-banner-toggle" onclick="
+          const b=document.getElementById('posBanner');
+          const c=b.dataset.collapsed==='1';
+          b.dataset.collapsed=c?'0':'1';
+          b.querySelector('.pos-banner-list').style.display=c?'':'none';
+          this.textContent=c?'∧':'∨';
+        ">${collapsed ? '∨' : '∧'}</button>
+      </div>
+      <div class="pos-banner-list" style="${collapsed ? 'display:none' : ''}">
+        ${anns.map(a => `
+          <div class="pos-ann-row${a.pinned?' is-pinned':''}">
+            <div style="flex:1">
+              <div class="pos-ann-title">${a.pinned?'📌 ':''}${a.title}</div>
+              ${a.content ? `<div class="pos-ann-body">${a.content}</div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
 }
 
 async function deleteAnn(id) {
@@ -2331,7 +2414,6 @@ function renderBoard() {
   const groups = { waiting: [], preparing: [], ready: [], done: [] };
 
   state.orders.forEach(o => {
-    if (o.isPreorder && o.status === 'waiting') return; // 預定單等按「開始製作」才進看板
     if (search && !o.id.toLowerCase().includes(search) && !(o.customer||'').toLowerCase().includes(search)) return;
     if (groups[o.status]) groups[o.status].push(o);
   });
@@ -2373,7 +2455,8 @@ function orderCard(o) {
 
   let borderStyle = o.unbilled ? 'border-color:#e84040;box-shadow:0 0 8px rgba(232,64,64,0.3)'
     : o.blacklisted ? 'border-color:#7a1a1a;box-shadow:0 0 8px rgba(180,40,40,0.25)'
-    : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)' : '';
+    : allChecked ? 'border-color:var(--green);box-shadow:0 0 8px rgba(61,186,110,0.25)'
+    : o.isPreorder ? 'border-color:#4fc3d8;background:rgba(79,195,216,0.06);box-shadow:0 0 8px rgba(79,195,216,0.15)' : '';
 
   let actions = '';
   if (o.status === 'waiting')   actions = `<button class="oc-btn ob-next" onclick="moveOrder('${o.id}','preparing')">開始製作</button><button class="oc-btn ob-cancel" onclick="cancelOrder('${o.id}')">取消</button>`;
@@ -3012,11 +3095,11 @@ function renderAll() {
   renderMenuGrid();
   renderMenuEditor();
   renderBoard();
-  renderPreorder();
   renderAccounting();
   renderInventory();
   renderBulletin();
   renderBulletinSidebar();
+  renderPosBanner();
   renderCustomerList();
   renderLeaderboard();
   if (isAdmin()) renderAdmins();

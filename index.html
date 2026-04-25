@@ -1118,6 +1118,7 @@ emoji-picker {
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn-small btn-green" onclick="addMenuRow()">＋ 新增品項</button>
         <button class="btn-small" style="background:rgba(74,158,255,0.12);border:1px solid rgba(74,158,255,0.4);color:var(--blue)" onclick="updateDefaultMenu()">📌 更新為默認菜單</button>
+        <button class="btn-small" style="background:rgba(232,145,58,0.12);border:1px solid rgba(232,145,58,0.4);color:var(--primary)" onclick="restoreDefaultMenu()">↩ 還原默認菜單</button>
       </div>
     </div>
     <div class="card">
@@ -2496,6 +2497,27 @@ async function updateDefaultMenu() {
   localStorage.setItem('gem_defaultMenu', JSON.stringify(state.menu));
   if (db && configReady) R.config().update({ menuDefault: state.menu }).catch(fbErr);
   uiAlert('✅ 已更新為默認菜單');
+}
+
+async function restoreDefaultMenu() {
+  // 優先從 Firebase menuDefault 讀，沒有再用 localStorage
+  const fromFirebase = await new Promise(res => {
+    if (!db) { res(null); return; }
+    R.config().once('value', snap => {
+      const d = snap.val();
+      res((d && d.menuDefault) ? d.menuDefault : null);
+    }, () => res(null));
+  });
+  const backup = fromFirebase
+    || (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
+  if (!backup || !backup.length) { uiAlert('找不到默認菜單備份，請先按「更新為默認菜單」儲存一次。'); return; }
+  const ok = await uiConfirm(`確定還原為默認菜單（${backup.length} 個品項）？目前菜單會被覆蓋。`);
+  if (!ok) return;
+  state.menu = Array.isArray(backup) ? backup : Object.values(backup);
+  saveMenu();
+  renderMenuGrid();
+  renderMenuEditor();
+  uiAlert(`✅ 已還原為默認菜單（${state.menu.length} 個品項）`);
 }
 
 // ── Menu editor

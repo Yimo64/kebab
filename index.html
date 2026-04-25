@@ -1317,10 +1317,10 @@ function initFirebase(cfg) {
   }
 }
 
+let configReady = false;
 function subscribeDB() {
   if (_dbSubscribed) return;
   _dbSubscribed = true;
-  let configReady = false;
 
   // 訂單（高頻，獨立節點）
   R.orders().on('value', snap => {

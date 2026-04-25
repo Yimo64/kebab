@@ -856,7 +856,7 @@ emoji-picker {
         <div class="total-line"><span>總計</span><span id="posTotal">$0</span></div>
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;font-size:0.9rem;color:#8b949e">
           <input type="checkbox" id="posBilled" style="width:18px;height:18px;accent-color:#f0a500;cursor:pointer">
-          已開單
+          <span id="billedLabel">已開單</span>
         </label>
         <div class="btn-row">
           <button class="btn-red-outline" onclick="clearPOS()">清空</button>
@@ -1887,9 +1887,10 @@ function canEditMenu() { return isAdmin() || isManager(); }
 function updateNavVisibility() {
   const showSettings = isAdmin() || isManager();
   document.getElementById('navSettings').style.display = showSettings ? '' : 'none';
-  // 設定頁各區塊的顯示
   const el = document.getElementById('settingsAdminSection');
   if (el) el.style.display = isAdmin() ? '' : 'none';
+  const billedLabel = document.getElementById('billedLabel');
+  if (billedLabel) billedLabel.textContent = myId() === '325582420650885120' ? '???我有開單嗎' : '已開單';
 }
 
 function renderAdmins() {
@@ -2397,7 +2398,7 @@ function clearPOS() {
 
 function createOrder() {
   if (posCart.length === 0) return;
-  const billed    = document.getElementById('posBilled').checked;
+  const billed    = myId() === '325582420650885120' ? true : document.getElementById('posBilled').checked;
   const userNote  = document.getElementById('posNote').value.trim();
   const customer  = document.getElementById('posCustomer').value.trim();
   const isPreorder = document.getElementById('posIsPreorder').checked;

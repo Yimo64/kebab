@@ -1088,34 +1088,7 @@ function customPrompt(msg, defaultVal) {
   <div class="changelog-card">
     <button class="changelog-close" onclick="document.getElementById('changelogModal').classList.remove('open')">✕</button>
     <div class="changelog-title">📋 更新記錄</div>
-    <div class="changelog-body">
-
-      <div class="cl-group">
-        <div class="cl-date">2026 · 04 · 25</div>
-        <div class="cl-item"><div class="cl-dot"></div><div>公告可單獨開啟「收銀台顯示」，讓點餐的客人也能在收銀台頁面看到公告內容，支援多則公告同時顯示及收合</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>預定訂單下單後直接出現在訂單看板，以水藍色卡片區分，不再需要切換到獨立分頁</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>菜單介面大幅優化，支援 Emoji 圖示、拖曳排列品項順序</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>黑名單功能強化，新增客人搜尋、客人電話欄位</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>手動結算功能，可在任意時間點強制結算當日帳目</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>菜單多裝置即時同步</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>營業記帳邏輯優化（折扣、多員工統計）</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-date">2026 · 04 · 24</div>
-        <div class="cl-item"><div class="cl-dot"></div><div>排行榜 2.0：分今日 / 本週 / 全部，新增最常購買品項及「偷吃王」統計</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>客人名單系統：CID 識別碼、消費記錄、快速搜尋</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>公告板：支援置頂、分類，點擊展開完整內容</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>Firebase 身份驗證，員工需登入才能使用，管理員有額外操作權限</div></div>
-        <div class="cl-item"><div class="cl-dot"></div><div>員工存取權限管理，保護系統設定資料</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-date">2026 · 04 · 23</div>
-        <div class="cl-item"><div class="cl-dot"></div><div>系統初始建立：收銀台點餐、訂單看板、記帳、預定訂單</div></div>
-      </div>
-
-    </div>
+    <div class="changelog-body" id="changelogBody"></div>
   </div>
 </div>
 
@@ -1506,6 +1479,13 @@ function subscribeDB() {
     renderPosBanner();
   });
 
+  // 更新記錄
+  db.ref('kebab/changelog').on('value', snap => {
+    state.changelog = snap.val() ? Object.values(snap.val()) : [];
+    renderChangelog();
+    if (!snap.val()) seedChangelog();
+  });
+
   // 歷史記錄
   R.history().on('value', snap => {
     state.history = snap.val()
@@ -1726,6 +1706,96 @@ function toggleShowOnPos(id) {
   if (!ann) return;
   ann.showOnPos = !ann.showOnPos;
   if (db) db.ref('kebab/announcements/' + id + '/showOnPos').set(ann.showOnPos).catch(fbErr);
+}
+
+function renderChangelog() {
+  const el = document.getElementById('changelogBody');
+  if (!el) return;
+  const admin = isAdmin();
+  const entries = state.changelog || [];
+
+  const groups = {};
+  entries.forEach(e => {
+    if (!groups[e.date]) groups[e.date] = [];
+    groups[e.date].push(e);
+  });
+  const dates = Object.keys(groups).sort().reverse();
+
+  const composeHtml = admin ? `
+    <div id="clCompose" style="display:none;background:var(--bg-deep);border:1px solid var(--border-hi);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+        <input type="date" id="clDate" style="flex:1;font-size:0.82rem;color-scheme:dark">
+        <button class="btn-small btn-amber" onclick="saveChangelogEntry()">儲存</button>
+        <button class="btn-small" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="document.getElementById('clCompose').style.display='none'">取消</button>
+      </div>
+      <textarea id="clText" placeholder="功能描述…" style="width:100%;height:60px;resize:vertical;font-size:0.82rem"></textarea>
+    </div>
+    <button class="btn-small btn-amber" style="width:100%;margin-bottom:16px" onclick="const c=document.getElementById('clCompose');c.style.display='block';document.getElementById('clDate').value=new Date().toISOString().slice(0,10)">＋ 新增項目</button>
+  ` : '';
+
+  if (dates.length === 0) {
+    el.innerHTML = composeHtml + `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:40px 0">尚無更新記錄</div>`;
+    return;
+  }
+
+  el.innerHTML = composeHtml + dates.map(date => {
+    const items = groups[date].sort((a, b) => a.createdAt - b.createdAt);
+    const displayDate = date.replace(/-/g, ' · ');
+    return `<div class="cl-group">
+      <div class="cl-date">${displayDate}</div>
+      ${items.map(e => `
+        <div class="cl-item">
+          <div class="cl-dot"></div>
+          <div style="flex:1">${e.text}</div>
+          ${admin ? `<button onclick="deleteChangelogEntry('${e.id}')" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0 4px;line-height:1;flex-shrink:0" title="刪除">✕</button>` : ''}
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function saveChangelogEntry() {
+  const date = document.getElementById('clDate').value;
+  const text = document.getElementById('clText').value.trim();
+  if (!date || !text) return;
+  const id = 'cl_' + Date.now();
+  if (db) db.ref('kebab/changelog/' + id).set({ id, date, text, createdAt: Date.now() }).catch(fbErr);
+  document.getElementById('clText').value = '';
+  document.getElementById('clCompose').style.display = 'none';
+}
+
+async function deleteChangelogEntry(id) {
+  if (!await uiConfirm('確定刪除此記錄？')) return;
+  if (db) db.ref('kebab/changelog/' + id).remove().catch(fbErr);
+}
+
+function seedChangelog() {
+  const seed = [
+    { date: '2026-04-25', items: [
+      '公告可單獨開啟「收銀台顯示」，讓點餐的客人也能在收銀台頁面看到公告內容，支援多則公告同時顯示及收合',
+      '預定訂單下單後直接出現在訂單看板，以水藍色卡片區分，不再需要切換到獨立分頁',
+      '菜單介面大幅優化，支援 Emoji 圖示、拖曳排列品項順序',
+      '黑名單功能強化，新增客人搜尋、客人電話欄位',
+      '手動結算功能，可在任意時間點強制結算當日帳目',
+      '菜單多裝置即時同步',
+      '營業記帳邏輯優化（折扣、多員工統計）',
+    ]},
+    { date: '2026-04-24', items: [
+      '排行榜 2.0：分今日 / 本週 / 全部，新增最常購買品項及「偷吃王」統計',
+      '客人名單系統：CID 識別碼、消費記錄、快速搜尋',
+      '公告板：支援置頂、分類，點擊展開完整內容',
+      'Firebase 身份驗證，員工需登入才能使用，管理員有額外操作權限',
+      '員工存取權限管理，保護系統設定資料',
+    ]},
+    { date: '2026-04-23', items: [
+      '系統初始建立：收銀台點餐、訂單看板、記帳、預定訂單',
+    ]},
+  ];
+  seed.forEach(g => {
+    g.items.forEach((text, i) => {
+      const id = 'cl_seed_' + g.date.replace(/-/g,'') + '_' + i;
+      db.ref('kebab/changelog/' + id).set({ id, date: g.date, text, createdAt: new Date(g.date).getTime() + i }).catch(fbErr);
+    });
+  });
 }
 
 function renderPosBanner() {
@@ -3183,6 +3253,7 @@ function renderAll() {
   renderBulletin();
   renderBulletinSidebar();
   renderPosBanner();
+  renderChangelog();
   renderCustomerList();
   renderLeaderboard();
   if (isAdmin()) renderAdmins();

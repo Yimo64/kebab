@@ -1202,15 +1202,17 @@ const DEFAULT_RECIPES = {
 // STATE
 // ════════════════════════════════════════
 
-// 每天 04:00 換日，04:00 前算前一天
+// 營業日：20:00 – 隔天 04:00；04:00–20:00 為換日空窗期（回傳 null）
 function getGameDay() {
   const now = new Date();
-  if (now.getHours() < 4) {
+  const h = now.getHours();
+  if (h < 4) {
     const d = new Date(now);
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
   }
-  return now.toISOString().split('T')[0];
+  if (h >= 20) return now.toISOString().split('T')[0];
+  return null; // 04:00–20:00 換日空窗期
 }
 
 // ════════════════════════════════════════
@@ -1307,6 +1309,7 @@ function subscribeDB() {
     if (!configReady) {
       configReady = true;
       setSyncStatus('connected');
+      checkDailyReset();
       renderAll();
     } else {
       cacheLocal();
@@ -2412,13 +2415,17 @@ let expandedHistoryIdx = null;
 function renderAccounting() {
   // 今日標題
   const _today = getGameDay();
-  const _isOldDay = state.lastResetDate && state.lastResetDate !== _today;
-  document.getElementById('accDayTitle').textContent = `今日記錄（${state.lastResetDate || _today}）`;
+  const _isDeadZone = _today === null;
+  const _isOldDay = !_isDeadZone && state.lastResetDate && state.lastResetDate !== _today;
+  document.getElementById('accDayTitle').textContent = `今日記錄（${state.lastResetDate || _today || '—'}）`;
   const _warn = document.getElementById('accDateWarn');
   if (_warn) {
     if (_isOldDay) {
       _warn.style.display = 'flex';
       _warn.innerHTML = `<span style="flex:1;color:var(--primary)">⚠ 日期已過，目前顯示的是 <b>${state.lastResetDate}</b> 的記錄，今日為 <b>${_today}</b></span><button onclick="manualCloseDay()" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">結算並開新一天</button>`;
+    } else if (_isDeadZone) {
+      _warn.style.display = 'flex';
+      _warn.innerHTML = `<span style="color:var(--muted)">⏳ 換日空窗期（04:00 – 20:00），下一個營業日將於 20:00 開始</span>`;
     } else {
       _warn.style.display = 'none';
     }
@@ -2598,6 +2605,18 @@ function exportAcc() {
 // ── 每日結算
 function checkDailyReset() {
   const today = getGameDay();
+  if (today === null) {
+    // 換日空窗期（04:00–20:00）：若上一個營業日尚未結算則自動結算
+    const now = new Date();
+    const yest = new Date(now);
+    yest.setDate(yest.getDate() - 1);
+    const yestStr = yest.toISOString().split('T')[0];
+    if (state.lastResetDate === yestStr) {
+      if (state.completed.length > 0) closeDayAs(state.lastResetDate);
+      else { state.lastResetDate = null; saveConfig(); }
+    }
+    return;
+  }
   if (state.lastResetDate && state.lastResetDate !== today) {
     closeDayAs(state.lastResetDate);
   } else if (!state.lastResetDate) {
@@ -2630,7 +2649,8 @@ function closeDayAs(date) {
 }
 
 async function manualCloseDay() {
-  if (!await uiConfirm(`確定手動結算今日（${state.lastResetDate}）並開始新的一天？`)) return;
+  if (!state.lastResetDate) { uiAlert('目前沒有進行中的營業日'); return; }
+  if (!await uiConfirm(`確定手動結算今日（${state.lastResetDate}）？結算後將等到 20:00 才開始新一天。`)) return;
   closeDayAs(state.lastResetDate);
 }
 
@@ -2882,6 +2902,7 @@ initFirebase(FIREBASE_CONFIG);
 renderAll();
 renderPOS();
 setLbScope('today');
+setInterval(checkDailyReset, 60000);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnn(); });
 </script>
 </body>

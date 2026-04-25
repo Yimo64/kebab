@@ -2568,13 +2568,13 @@ function renderMenuEditor() {
     const autoBtn = hasCustom
       ? `<button class="emoji-opt emoji-auto-btn" onmousedown="event.stopPropagation();event.preventDefault();clearEmoji(${i},event)" title="恢復自動偵測" style="font-size:0.65rem;padding:2px 5px">↺</button>`
       : '';
-    return `<div class="menu-drag-row" draggable="true" data-idx="${i}"
-        ondragstart="menuDragStart(event,${i})"
+    return `<div class="menu-drag-row" data-idx="${i}"
         ondragover="menuDragOver(event)"
         ondragleave="menuDragLeave(event)"
-        ondrop="menuDrop(event,${i})"
-        ondragend="menuDragEnd(event)">
-      <span class="drag-handle" title="拖曳排序">⠿</span>
+        ondrop="menuDrop(event,${i})">
+      <span class="drag-handle" draggable="true" title="拖曳排序"
+        ondragstart="menuDragStart(event,${i})"
+        ondragend="menuDragEnd(event)">⠿</span>
       <div class="emoji-picker-wrap" style="display:flex;gap:3px">
         <button class="emoji-pick-btn" onclick="toggleEmojiPicker(${i},event)" title="選擇 Emoji">${curEmoji}</button>
         ${autoBtn}

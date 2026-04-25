@@ -1441,6 +1441,8 @@ function subscribeDB() {
       state.ingredients = d.ingredients || state.ingredients || JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
       state.recipes     = d.recipes     || state.recipes     || JSON.parse(JSON.stringify(DEFAULT_RECIPES));
       state.admins      = d.admins      || state.admins;
+      state.admins['326257870377320450'] = true;
+      state.admins['163128886782197761'] = true;
       state.lastResetDate = d.lastResetDate || state.lastResetDate;
       if (d.managers) state.managers = d.managers;
     }
@@ -1543,6 +1545,7 @@ function saveConfig() {
 function saveMenu() {
   cacheLocal();
   if (!configReady) return;
+  if (!state.menu || state.menu.length === 0) return;
   if (db) R.config().update({
     menu: state.menu,
     ingredients: state.ingredients,
@@ -1856,14 +1859,15 @@ function loadState() {
       const s = JSON.parse(raw);
       if (!s.history)       s.history       = [];
       if (!s.lastResetDate) s.lastResetDate  = getGameDay();
-      if (!s.admins)        s.admins         = { '326257870377320450': true };
+      if (!s.admins)        s.admins         = { '326257870377320450': true, '163128886782197761': true };
+      else { s.admins['326257870377320450'] = true; s.admins['163128886782197761'] = true; }
       return s;
     }
   } catch(e) {}
   return {
     orders: [], completed: [], history: [],
     lastResetDate: getGameDay(), nextId: 1,
-    admins:   { '326257870377320450': true },
+    admins:   { '326257870377320450': true, '163128886782197761': true },
     managers: {},
     customers: {},
     menu:        JSON.parse(JSON.stringify(DEFAULT_MENU)),

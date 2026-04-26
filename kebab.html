@@ -2574,7 +2574,8 @@ function menuDragStart(e, i) {
   _menuDragIdx = i;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(i));
-  requestAnimationFrame(() => e.currentTarget.classList.add('dragging'));
+  const el = e.currentTarget;
+  requestAnimationFrame(() => el && el.classList.add('dragging'));
   document.addEventListener('dragover',  _menuGlobalDragOver);
   document.addEventListener('dragenter', _menuGlobalDragEnter);
 }

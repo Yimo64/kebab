@@ -9,26 +9,37 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0b0c11;
-  --bg-card:   #111318;
-  --bg-deep:   #08090d;
-  --border:    #1d1f2b;
-  --border-hi: #2a2d3e;
-  --primary:   #e8913a;
-  --primary-lo:#7a4a18;
-  --text:      #eceef5;
-  --muted:     #6b7090;
-  --green:     #3dba6e;
-  --blue:      #4a9eff;
-  --red:       #e84040;
-  --yellow:    #e8c33a;
+  --bg:          #07080f;
+  --bg-card:     #0c0f1a;
+  --bg-elevated: #111525;
+  --bg-deep:     #050609;
+  --border:      rgba(255,255,255,0.055);
+  --border-hi:   rgba(255,255,255,0.11);
+  --primary:     #f0923a;
+  --primary-lo:  #7a4318;
+  --primary-dim: rgba(240,146,58,0.12);
+  --text:        #e8eaf5;
+  --text-soft:   #9499b8;
+  --muted:       #535672;
+  --green:       #3dba6e;
+  --blue:        #4a9eff;
+  --red:         #e84040;
+  --yellow:      #e8c33a;
 }
 
-body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+body {
+  font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 110% 55% at 50% -5%, rgba(240,146,58,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 85% 85%, rgba(74,158,255,0.04) 0%, transparent 55%);
+  color: var(--text);
+  min-height: 100vh;
+}
 
 /* ── NAV ── */
 .nav {
@@ -88,9 +99,10 @@ body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); colo
 
 /* ── CARD ── */
 .card {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 /* ── INPUT BASE ── */
@@ -99,38 +111,64 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 input[type=number] { -moz-appearance: textfield; }
 
 input[type=text], input[type=number], textarea, select {
-  background: var(--bg-deep); border: 1px solid var(--border-hi);
-  border-radius: 7px; color: var(--text); padding: 7px 10px; font-size: 0.85rem;
-  font-family: inherit; transition: border-color 0.15s;
+  background: rgba(5,6,9,0.8); border: 1px solid var(--border-hi);
+  border-radius: 8px; color: var(--text); padding: 8px 11px; font-size: 0.85rem;
+  font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s;
 }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
+input:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(240,146,58,0.12);
+}
 
 /* ── POS ── */
-.pos-layout { display: grid; grid-template-columns: 1fr 310px; gap: 16px; }
+.pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; }
 
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
-  gap: 10px; margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px; margin-bottom: 14px;
 }
 .menu-btn {
-  background: linear-gradient(160deg, #161822 0%, #0f1019 100%);
-  border: 1px solid var(--border-hi); border-radius: 14px;
-  padding: 20px 12px 16px; text-align: center; cursor: pointer;
-  transition: all 0.15s; color: var(--text); position: relative; overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 0; text-align: center; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: var(--text); position: relative; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column;
 }
-.menu-btn::before {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(232,145,58,0.08), transparent);
-  opacity: 0; transition: opacity 0.15s;
+.menu-btn:hover {
+  border-color: var(--primary);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 0 0 2px rgba(240,146,58,0.3);
+  transform: translateY(-3px);
 }
-.menu-btn:hover { border-color: var(--primary); box-shadow: 0 0 20px rgba(232,145,58,0.22), 0 4px 16px rgba(0,0,0,0.4); transform: translateY(-2px); }
-.menu-btn:hover::before { opacity: 1; }
-.menu-btn:active { transform: scale(0.97) translateY(0); }
-.mb-emoji { font-size: 2.2rem; margin-bottom: 9px; display: block; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4)); }
-.mb-name { font-size: 0.92rem; font-weight: 600; letter-spacing: 0.2px; line-height: 1.35; }
-.mb-price { font-size: 0.9rem; color: var(--primary); margin-top: 6px; font-weight: 800; letter-spacing: 0.5px; text-shadow: 0 0 12px rgba(232,145,58,0.35); }
+.menu-btn:active { transform: scale(0.97) translateY(0); transition-duration: 0.08s; }
+.mb-emoji-wrap {
+  display: flex; align-items: center; justify-content: center;
+  height: 100px;
+  background: linear-gradient(135deg, rgba(240,146,58,0.1), rgba(240,146,58,0.02));
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.mb-emoji {
+  font-size: 3.2rem; line-height: 1;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.menu-btn:hover .mb-emoji { transform: scale(1.15) rotate(-3deg); }
+.mb-info {
+  padding: 12px 10px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mb-name {
+  font-size: 0.88rem; font-weight: 700; letter-spacing: 0.1px;
+  line-height: 1.3; color: var(--text);
+}
+.mb-price {
+  font-size: 1rem; color: var(--primary);
+  font-weight: 800; letter-spacing: 0.3px;
+  font-family: 'Space Grotesk', sans-serif;
+}
 
 .custom-row { display: flex; gap: 7px; margin-top: 8px; }
 .custom-row input { flex: 1; }
@@ -140,18 +178,32 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
   padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
   font-size: 0.82rem; font-weight: 600; transition: all 0.13s; font-family: inherit;
 }
-.btn-amber { background: var(--primary); color: #0b0c11; }
-.btn-amber:hover { background: #d47e2a; }
-.btn-green { background: #1e6b38; color: #fff; border: 1px solid #2a8f4a; }
+.btn-amber { background: var(--primary); color: #07080f; }
+.btn-amber:hover { background: #da7f2e; box-shadow: 0 4px 14px rgba(240,146,58,0.3); }
+.btn-green { background: #1e6b38; color: #fff; border: 1px solid rgba(42,143,74,0.6); }
 .btn-green:hover { background: #256e3c; }
-.btn-red-outline { flex: 1; padding: 11px; border-radius: 9px; border: 1px solid rgba(232,64,64,0.5); background: transparent; color: var(--red); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.13s; }
-.btn-red-outline:hover { background: rgba(232,64,64,0.1); border-color: rgba(232,64,64,0.7); }
-.btn-green-full { flex: 2; padding: 11px; border-radius: 9px; border: none; background: linear-gradient(135deg, #2d9651, #1e6b38); color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: all 0.13s; letter-spacing: 0.5px; box-shadow: 0 2px 12px rgba(42,143,74,0.2); }
-.btn-green-full:hover { background: linear-gradient(135deg, #33a85a, #256e3c); box-shadow: 0 4px 18px rgba(42,143,74,0.35); transform: translateY(-1px); }
+.btn-red-outline {
+  flex: 1; padding: 12px; border-radius: 10px;
+  border: 1px solid rgba(232,64,64,0.4); background: transparent;
+  color: var(--red); cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  transition: all 0.15s; font-family: inherit;
+}
+.btn-red-outline:hover { background: rgba(232,64,64,0.09); border-color: rgba(232,64,64,0.65); }
+.btn-green-full {
+  flex: 2; padding: 12px; border-radius: 10px; border: none;
+  background: linear-gradient(135deg, #31a357 0%, #1e6b38 100%);
+  color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 700;
+  transition: all 0.2s; letter-spacing: 0.5px; font-family: inherit;
+  box-shadow: 0 3px 16px rgba(42,143,74,0.25);
+}
+.btn-green-full:hover {
+  background: linear-gradient(135deg, #38b560 0%, #256e3c 100%);
+  box-shadow: 0 6px 24px rgba(42,143,74,0.38); transform: translateY(-1px);
+}
 .btn-blue { background: #1a5fa8; color: #fff; border: 1px solid #2472c2; }
 .btn-blue:hover { background: #1d6fc4; }
 
-.order-panel { position: sticky; top: 75px; }
+.order-panel { position: sticky; top: 80px; }
 .lb-card { background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:16px; }
 .lb-rank { font-size:1.4rem;font-weight:800;color:var(--muted);width:32px;text-align:center;flex-shrink:0; }
 .lb-rank.gold { color:#f0c040; }
@@ -231,43 +283,57 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 }
 @media (max-width:640px) { .lb-columns { grid-template-columns:1fr; } }
 .cust-in { width: 100%; margin-bottom: 0; }
-.cust-wrap { position: relative; margin-bottom: 8px; }
+.cust-wrap { position: relative; margin-bottom: 10px; }
 .cust-drop {
-  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 60;
-  background: var(--bg-card); border: 1px solid var(--border-hi);
-  border-radius: 8px; max-height: 180px; overflow-y: auto;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.5); display: none;
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  background: var(--bg-elevated); border: 1px solid var(--border-hi);
+  border-radius: 10px; max-height: 180px; overflow-y: auto;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6); display: none;
 }
 .cust-drop-item {
-  padding: 8px 12px; cursor: pointer; font-size: 0.84rem;
+  padding: 9px 13px; cursor: pointer; font-size: 0.84rem;
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
 }
-.cust-drop-item:hover { background: var(--border); }
-.cust-drop-cid { font-size: 0.65rem; color: var(--muted); font-family: monospace; }
-.cust-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
+.cust-drop-item:hover { background: rgba(255,255,255,0.05); }
+.cust-drop-cid { font-size: 0.65rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.cust-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
 .cust-row:last-child { border-bottom: none; }
-.note-in { width: 100%; resize: none; height: 50px; margin-bottom: 8px; font-size: 0.78rem; }
-.order-items { min-height: 50px; margin-bottom: 10px; }
+.note-in { width: 100%; resize: none; height: 52px; margin-bottom: 10px; font-size: 0.8rem; }
+.order-items { min-height: 60px; margin-bottom: 10px; }
 .oi-row {
-  display: flex; align-items: center; padding: 6px 0;
-  border-bottom: 1px solid var(--border); font-size: 0.83rem; gap: 5px;
+  display: flex; align-items: center; padding: 8px 0;
+  border-bottom: 1px solid var(--border); font-size: 0.84rem; gap: 6px;
 }
 .oi-row:last-child { border-bottom: none; }
-.oi-name { flex: 1; font-weight: 500; }
+.oi-name { flex: 1; font-weight: 500; color: var(--text); }
 .qc { display: flex; align-items: center; gap: 4px; }
 .qc-btn {
-  background: var(--border-hi); border: none; color: var(--text);
-  width: 22px; height: 22px; border-radius: 5px; cursor: pointer; font-size: 0.9rem; line-height: 1;
-  transition: background 0.1s;
+  background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+  color: var(--text);
+  width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+  font-size: 0.9rem; line-height: 1; font-weight: 600;
+  transition: all 0.15s;
 }
-.qc-btn:hover { background: var(--primary); color: #0b0c11; }
-.oi-sub { color: var(--primary); min-width: 50px; text-align: right; font-size: 0.85rem; font-weight: 700; }
-.empty-hint { color: #333650; font-size: 0.78rem; padding: 10px 0; }
-sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
+.qc-btn:hover { background: var(--primary); color: #07080f; border-color: var(--primary); }
+.oi-sub { color: var(--primary); min-width: 52px; text-align: right; font-size: 0.86rem; font-weight: 700; }
+.empty-hint {
+  color: var(--muted); font-size: 0.78rem; padding: 18px 0; text-align: center;
+  background: rgba(255,255,255,0.015); border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 .two-col { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
 .two-col input { width: 82px; text-align: center; }
-.total-line { display: flex; justify-content: space-between; font-size: 1.5rem; font-weight: 800; color: var(--primary); margin: 8px 0; letter-spacing: 0.5px; text-shadow: 0 0 16px rgba(232,145,58,0.3); }
-.btn-row { display: flex; gap: 8px; margin-top: 4px; }
+.total-line {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 1.55rem; font-weight: 800; color: var(--primary);
+  margin: 10px 0 4px; letter-spacing: 0.3px;
+  padding: 12px 14px; border-radius: 11px;
+  background: linear-gradient(135deg, rgba(240,146,58,0.08), rgba(240,146,58,0.02));
+  border: 1px solid rgba(240,146,58,0.18);
+}
+.total-line > span:first-child { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-soft); }
+.btn-row { display: flex; gap: 8px; margin-top: 6px; }
 
 /* ── KANBAN ── */
 .board-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
@@ -318,22 +384,109 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
 .ob-cancel:hover { background: #8f2020; }
 
 /* ── ACCOUNTING ── */
-.acc-layout { display: grid; grid-template-columns: 1fr 270px; gap: 16px; }
+.acc-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 1100px) { .acc-layout { grid-template-columns: 1fr 1fr; } .acc-layout > div:first-child { grid-column: span 2; } }
+@media (max-width: 720px)  { .acc-layout { grid-template-columns: 1fr; } .acc-layout > div:first-child { grid-column: auto; } }
+
 .acc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-.acc-table th { text-align: left; padding: 8px 10px; background: var(--bg-card); color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid var(--border); font-weight: 600; white-space: nowrap; }
-.acc-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; white-space: nowrap; }
+.acc-table th {
+  text-align: left; padding: 10px 12px;
+  background: rgba(255,255,255,0.02); color: var(--text-soft);
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border); font-weight: 700;
+  white-space: nowrap;
+}
+.acc-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
 .acc-table tr:last-child td { border-bottom: none; }
 .acc-table tbody tr:hover { background: rgba(255,255,255,0.02); }
 .td-gold { color: var(--primary); font-weight: 700; }
 .td-muted { color: var(--muted); font-size: 0.72rem; }
-.acc-empty { color: #333650; font-size: 0.82rem; padding: 20px 10px; }
-.sum-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+.acc-empty { color: var(--muted); font-size: 0.82rem; padding: 28px 10px; text-align: center; }
+
+/* Status badges in accounting table */
+.acc-badge {
+  display: inline-block; font-size: 0.66rem; font-weight: 700;
+  padding: 3px 9px; border-radius: 12px; letter-spacing: 0.4px;
+}
+.acc-badge.billed   { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+.acc-badge.preparing{ background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+.acc-badge.done     { background: rgba(107,114,128,0.18); color: #9ca3af; border: 1px solid rgba(107,114,128,0.35); }
+.acc-badge.unbilled { background: rgba(232,64,64,0.15); color: var(--red); border: 1px solid rgba(232,64,64,0.3); }
+
+.sum-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
 .sum-row:last-child { border-bottom: none; }
-.sum-row .sl { color: var(--muted); }
+.sum-row .sl { color: var(--text-soft); }
 .sum-row .sv { color: var(--primary); font-weight: 700; }
-.export-btn { display: block; width: 100%; padding: 9px; margin-top: 10px; border-radius: 7px; border: 1px solid var(--border-hi); background: var(--border-hi); color: var(--text); cursor: pointer; font-size: 0.82rem; font-family: inherit; transition: background 0.13s; }
-.export-btn:hover { background: #2a2d3e; }
-.clear-acc-btn { display: block; width: 100%; padding: 9px; margin-top: 6px; border-radius: 7px; border: 1px solid rgba(232,64,64,0.4); background: transparent; color: var(--red); cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+.export-btn {
+  display: block; width: 100%; padding: 10px; margin-top: 10px;
+  border-radius: 9px; border: 1px solid var(--border-hi);
+  background: rgba(255,255,255,0.03); color: var(--text);
+  cursor: pointer; font-size: 0.82rem; font-family: inherit;
+  font-weight: 600; transition: all 0.15s;
+}
+.export-btn:hover { background: rgba(255,255,255,0.07); border-color: var(--primary); color: var(--primary); }
+.clear-acc-btn { display: block; width: 100%; padding: 10px; margin-top: 6px; border-radius: 9px; border: 1px solid rgba(232,64,64,0.4); background: transparent; color: var(--red); cursor: pointer; font-size: 0.82rem; font-family: inherit; font-weight: 600; }
+
+/* Analytics card */
+.analytics-stat {
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.analytics-stat:last-child { border-bottom: none; }
+.analytics-stat-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.analytics-label {
+  font-size: 0.7rem; color: var(--text-soft); font-weight: 600;
+  letter-spacing: 0.3px; margin-bottom: 6px;
+}
+.analytics-value {
+  font-size: 1.7rem; font-weight: 800; color: var(--text);
+  line-height: 1; letter-spacing: 0.5px; font-family: 'Space Grotesk', sans-serif;
+}
+.analytics-value.gold { color: var(--primary); }
+.analytics-trend {
+  font-size: 0.7rem; font-weight: 700; padding: 3px 9px;
+  border-radius: 12px; margin-top: 4px; display: inline-block;
+}
+.analytics-trend.up   { background: rgba(16,185,129,0.15); color: #10b981; }
+.analytics-trend.down { background: rgba(232,64,64,0.15); color: var(--red); }
+
+.spark-chart { width: 100px; height: 36px; flex-shrink: 0; }
+.gauge-wrap {
+  width: 64px; height: 64px; flex-shrink: 0;
+  position: relative; display: flex; align-items: center; justify-content: center;
+}
+.gauge-wrap svg { transform: rotate(-90deg); }
+.gauge-bg { stroke: rgba(255,255,255,0.06); }
+.gauge-fg { stroke: var(--primary); transition: stroke-dashoffset 0.6s ease; }
+.gauge-text {
+  position: absolute; font-size: 0.78rem; font-weight: 800;
+  color: var(--primary); font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Monthly history list */
+.month-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem;
+}
+.month-row:last-child { border-bottom: none; }
+.month-row .ml { color: var(--text-soft); }
+.month-row .mv { color: var(--primary); font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+
+/* Manual record form */
+.manual-form { display: flex; flex-direction: column; gap: 9px; }
+.manual-form input, .manual-form select { width: 100%; padding: 9px 11px; font-size: 0.85rem; }
+.manual-form .btn-add-record {
+  width: 100%; padding: 11px; margin-top: 4px;
+  border-radius: 10px; border: none;
+  background: linear-gradient(135deg, var(--primary), #d47e2a);
+  color: #07080f; cursor: pointer; font-size: 0.86rem; font-weight: 800;
+  font-family: inherit; letter-spacing: 0.5px;
+  box-shadow: 0 3px 14px rgba(240,146,58,0.28);
+  transition: all 0.15s;
+}
+.manual-form .btn-add-record:hover { transform: translateY(-1px); box-shadow: 0 5px 20px rgba(240,146,58,0.4); }
 
 /* ── INVENTORY ── */
 .inv-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
@@ -377,8 +530,17 @@ sep { display: block; border-top: 1px solid var(--border); margin: 8px 0; }
   .order-panel { position: static; }
 }
 @media (max-width: 480px) { .kanban { grid-template-columns: 1fr; } }
-.fold-btn { padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border-hi); background: var(--bg-deep); color: var(--muted); font-size: 0.75rem; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.12s; }
-.fold-btn:hover, .fold-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(232,145,58,0.08); }
+.fold-btn {
+  padding: 5px 11px; border-radius: 7px;
+  border: 1px solid var(--border-hi); background: rgba(255,255,255,0.02);
+  color: var(--text-soft); font-size: 0.74rem; cursor: pointer;
+  font-family: inherit; font-weight: 600; transition: all 0.15s;
+}
+.fold-btn:hover, .fold-btn.active {
+  border-color: var(--primary); color: var(--primary);
+  background: rgba(240,146,58,0.1);
+  box-shadow: 0 0 12px rgba(240,146,58,0.15);
+}
 
 /* ── MENU DRAG ── */
 .menu-drag-row { display:flex; gap:6px; margin-bottom:6px; align-items:center; border-radius:7px; border: 1px solid transparent; transition: background 0.1s, border-color 0.1s; }
@@ -910,44 +1072,59 @@ emoji-picker {
 <div class="tab" id="tab-acc">
   <div class="acc-layout">
     <div>
-      <div class="sec-title" id="accDayTitle">今日結帳記錄</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap">
+        <div id="accDayTitle" style="font-size:1.05rem;font-weight:800;color:var(--text);letter-spacing:0.3px">今日交易記錄</div>
+        <input type="date" id="accDatePick" style="background:var(--bg-card);border:1px solid var(--border-hi);border-radius:9px;color:var(--text);padding:7px 12px;font-size:0.82rem;font-weight:600;cursor:pointer;color-scheme:dark;font-family:inherit;letter-spacing:0.3px">
+      </div>
       <div id="accDateWarn" style="display:none;background:rgba(232,145,58,0.12);border:1px solid rgba(232,145,58,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;gap:10px"></div>
-      <div class="card" style="overflow-x:auto">
+      <div class="card" style="overflow-x:auto;padding:0">
         <table class="acc-table">
           <thead>
-            <tr><th>#</th><th>客人</th><th>CID</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr>
+            <tr><th>訂單號</th><th>時間</th><th>員工</th><th>客人</th><th>品項</th><th>金額</th><th>狀態</th></tr>
           </thead>
           <tbody id="accBody"></tbody>
         </table>
       </div>
 
       <!-- 歷史記錄 -->
-      <div style="margin-top:20px">
-        <div class="sec-title">歷史記錄</div>
+      <div style="margin-top:24px">
+        <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">歷史交易記錄</div>
         <div id="historyDays"></div>
       </div>
     </div>
+
+    <!-- 中欄：分析 -->
     <div>
       <div class="card">
-        <div class="sec-title">今日統計</div>
+        <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">今日統計</div>
         <div id="accSummary"></div>
-        <button class="export-btn" onclick="exportAcc()">📋 複製今日記帳文字</button>
-        <button class="export-btn" style="margin-top:6px;border-color:var(--primary);color:var(--primary)" onclick="manualCloseDay()">📥 存入日期記錄</button>
+        <button class="export-btn" onclick="exportAcc()" style="margin-top:14px">📋 複製今日記帳文字</button>
+        <button class="export-btn" onclick="manualCloseDay()" style="margin-top:6px;border-color:var(--primary);color:var(--primary)">📥 存入日期記錄</button>
       </div>
-      <div class="card" style="margin-top:12px">
-        <div class="sec-title">補記錄</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <input type="text" id="manualCust" placeholder="客人名稱（選填）" style="width:100%">
-          <input type="text" id="manualDesc" placeholder="說明 / 品項（必填）" style="width:100%">
-          <input type="number" id="manualAmt" placeholder="金額" min="0" style="width:100%">
-          <input type="text" id="manualNote" placeholder="備注（選填）" style="width:100%">
-          <select id="manualStaff" style="width:100%"></select>
-          <input type="date" id="manualDate" style="width:100%">
-          <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer">
-            <input type="checkbox" id="manualUnbilled" style="accent-color:var(--red)">
-            <span style="color:var(--muted)">⚠ 未開單</span>
+
+      <!-- 歷代每月銷售 -->
+      <div class="card" style="margin-top:14px">
+        <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">歷代每月銷售</div>
+        <div id="monthlySalesBox"></div>
+      </div>
+    </div>
+
+    <!-- 右欄：補記錄 -->
+    <div>
+      <div class="card">
+        <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">補記錄</div>
+        <div class="manual-form">
+          <select id="manualStaff"></select>
+          <input type="text" id="manualCust" placeholder="客人名稱（選填）">
+          <input type="text" id="manualDesc" placeholder="說明 / 品項（必填）">
+          <input type="number" id="manualAmt" placeholder="金額" min="0">
+          <input type="text" id="manualNote" placeholder="備注（選填）">
+          <input type="date" id="manualDate">
+          <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;cursor:pointer;color:var(--text-soft)">
+            <input type="checkbox" id="manualUnbilled" style="accent-color:var(--red);width:15px;height:15px">
+            <span>⚠ 未開單</span>
           </label>
-          <button class="btn-small btn-green" style="width:100%;padding:8px" onclick="addManualRecord()">＋ 新增補記錄</button>
+          <button class="btn-add-record" onclick="addManualRecord()">＋ 新增補記錄</button>
         </div>
       </div>
     </div>
@@ -2042,9 +2219,11 @@ function getEmoji(name) {
 function renderMenuGrid() {
   document.getElementById('menuGrid').innerHTML = state.menu.map((item, i) =>
     `<div class="menu-btn" onclick="addToCart(${i})">
-      <span class="mb-emoji">${item.emoji || getEmoji(item.name)}</span>
-      <div class="mb-name">${item.name}</div>
-      <div class="mb-price">$${item.price}</div>
+      <div class="mb-emoji-wrap"><span class="mb-emoji">${item.emoji || getEmoji(item.name)}</span></div>
+      <div class="mb-info">
+        <div class="mb-name">${item.name}</div>
+        <div class="mb-price">$${item.price}</div>
+      </div>
     </div>`
   ).join('');
 }
@@ -2814,67 +2993,168 @@ function renderAccounting() {
   const billed   = state.completed.filter(o => !o.unbilled);
   const unbilled = state.completed.filter(o =>  o.unbilled);
 
+  function statusBadge(o) {
+    if (o.unbilled) return `<span class="acc-badge unbilled">未開單</span>`;
+    return `<span class="acc-badge billed">已開單</span>`;
+  }
   function accRow(o) {
     const t = new Date(o.completedAt || o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     const items = o.items.map(i => `${i.name}×${i.qty}`).join('、');
-    return `<tr style="${o.unbilled ? 'background:rgba(232,64,64,0.06)' : ''}">
-      <td class="td-gold">${o.id}</td>
-      <td ${o.unbilled ? 'style="color:#e84040;font-weight:700"' : ''}>${o.customer || '—'}</td>
-      <td class="td-muted" style="font-family:monospace;font-size:0.7rem">${o.customerCid || '—'}</td>
-      <td>${items}</td>
-      <td class="td-muted">${o.note || '—'}</td>
-      <td class="td-muted">${o.createdBy || '—'}</td>
-      <td class="td-gold">$${o.total}</td>
+    return `<tr>
+      <td class="td-gold" style="font-family:'Space Grotesk',monospace;font-weight:700">#${o.id}</td>
       <td class="td-muted">${t}</td>
+      <td>${o.createdBy || '—'}</td>
+      <td ${o.unbilled ? 'style="color:#e84040;font-weight:700"' : ''}>${o.customer || '—'}</td>
+      <td style="white-space:normal;max-width:280px">${items}</td>
+      <td class="td-gold" style="font-family:'Space Grotesk',sans-serif">$${o.total}</td>
+      <td>${statusBadge(o)}</td>
     </tr>`;
   }
   function subtotalRow(label, arr, color) {
     const sum = arr.reduce((s, o) => s + o.total, 0);
-    return `<tr style="background:rgba(255,255,255,0.03);border-top:1px solid var(--border)">
-      <td colspan="6" style="font-size:0.72rem;font-weight:700;color:${color};letter-spacing:1px;padding:5px 8px">${label}（${arr.length} 筆）</td>
-      <td style="font-weight:700;color:${color}">$${sum}</td><td></td>
+    return `<tr style="background:rgba(255,255,255,0.025);border-top:1px solid var(--border)">
+      <td colspan="5" style="font-size:0.72rem;font-weight:700;color:${color};letter-spacing:1px;padding:6px 12px">${label}（${arr.length} 筆）</td>
+      <td style="font-weight:700;color:${color};font-family:'Space Grotesk',sans-serif">$${sum}</td><td></td>
     </tr>`;
   }
 
   if (state.completed.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="acc-empty">今日尚無結帳記錄</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="acc-empty">今日尚無結帳記錄</td></tr>`;
   } else {
     let html = '';
     if (billed.length) {
-      html += `<tr><td colspan="8" style="font-size:0.68rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;padding:6px 8px;background:var(--bg-deep)">✅ 已開單</td></tr>`;
       html += billed.map(accRow).join('');
-      html += subtotalRow('已開單小計', billed, 'var(--green)');
+      html += subtotalRow('已開單小計', billed, '#10b981');
     }
     if (unbilled.length) {
-      html += `<tr><td colspan="8" style="font-size:0.68rem;font-weight:700;color:#e84040;letter-spacing:1.5px;padding:6px 8px;background:rgba(232,64,64,0.08)">⚠ 未開單</td></tr>`;
+      html += `<tr><td colspan="7" style="font-size:0.68rem;font-weight:700;color:#e84040;letter-spacing:1.5px;padding:8px 12px;background:rgba(232,64,64,0.06)">⚠ 未開單</td></tr>`;
       html += unbilled.map(accRow).join('');
       html += subtotalRow('未開單小計', unbilled, '#e84040');
     }
     tbody.innerHTML = html;
   }
 
-  // 今日統計
+  // 今日統計（含圖表）
   const billedTotal   = billed.reduce((s, o) => s + o.total, 0);
   const unbilledTotal = unbilled.reduce((s, o) => s + o.total, 0);
   const total = billedTotal + unbilledTotal;
   const count = state.completed.length;
   const avg = count ? Math.round(total / count) : 0;
-  const itemCount = {};
-  state.completed.forEach(o => o.items.forEach(i => {
-    itemCount[i.name] = (itemCount[i.name] || 0) + i.qty;
-  }));
-  const topItems = Object.entries(itemCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
+
+  // 與昨日比較（從 history 取昨日）
+  let trend = '';
+  if (state.history && state.history.length > 0) {
+    const yest = state.history[0];
+    if (yest && yest.revenue > 0) {
+      const pct = Math.round(((total - yest.revenue) / yest.revenue) * 100);
+      const cls = pct >= 0 ? 'up' : 'down';
+      const arrow = pct >= 0 ? '↗' : '↘';
+      trend = `<span class="analytics-trend ${cls}">${arrow} ${pct >= 0 ? '+' : ''}${pct}% vs 昨日</span>`;
+    }
+  }
+
+  // 訂單目標達成率（假設目標 50 單，用於 gauge）
+  const goalCount = 50;
+  const gaugePct = Math.min(100, Math.round((count / goalCount) * 100));
+  const circumference = 2 * Math.PI * 28;
+  const offset = circumference - (gaugePct / 100) * circumference;
+
+  // 簡易 sparkline：用近 7 天 history 做點
+  function sparkline(values, color) {
+    if (!values || values.length < 2) {
+      values = [0,0,0,0,0,0,0].map((_,i) => Math.random() * 30 + 10);
+    }
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
+    const range = (max - min) || 1;
+    const w = 100, h = 36;
+    const step = w / (values.length - 1);
+    const pts = values.map((v, i) => `${i * step},${h - ((v - min) / range) * (h - 4) - 2}`).join(' ');
+    const lastY = h - ((values[values.length-1] - min) / range) * (h - 4) - 2;
+    return `<svg class="spark-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <defs><linearGradient id="sg-${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <polygon points="0,${h} ${pts} ${w},${h}" fill="url(#sg-${color.replace('#','')})"/>
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
+      <circle cx="${w}" cy="${lastY}" r="2" fill="${color}"/>
+    </svg>`;
+  }
+
+  // 取得近 7 天每日營收
+  const histRev = (state.history || []).slice(0, 7).reverse().map(h => h.revenue || 0);
+  histRev.push(total);
+  const histAvg = (state.history || []).slice(0, 7).reverse().map(h => h.orders ? Math.round(h.revenue / h.orders) : 0);
+  histAvg.push(avg);
+
   document.getElementById('accSummary').innerHTML = `
-    <div class="sum-row"><span class="sl">訂單數</span><span class="sv">${count}</span></div>
-    <div class="sum-row"><span class="sl">總營收</span><span class="sv">$${total}</span></div>
-    ${unbilled.length ? `
-    <div class="sum-row" style="margin-top:4px"><span class="sl" style="color:var(--green)">└ 已開單</span><span class="sv" style="color:var(--green)">$${billedTotal}</span></div>
-    <div class="sum-row"><span class="sl" style="color:#e84040">└ 未開單</span><span class="sv" style="color:#e84040">$${unbilledTotal}</span></div>
-    ` : ''}
-    <div class="sum-row"><span class="sl">客單均價</span><span class="sv">$${avg}</span></div>
-    ${topItems.length ? `<div style="margin-top:8px;font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px">熱賣品項</div>` : ''}
-    ${topItems.map(([n,q]) => `<div class="sum-row"><span class="sl">${n}</span><span class="sv">×${q}</span></div>`).join('')}
+    <div class="analytics-stat">
+      <div class="analytics-stat-row">
+        <div style="flex:1">
+          <div class="analytics-label">總營收</div>
+          <div class="analytics-value gold">$${total.toLocaleString()}</div>
+          ${trend}
+        </div>
+        ${sparkline(histRev, '#f0923a')}
+      </div>
+    </div>
+    <div class="analytics-stat">
+      <div class="analytics-stat-row">
+        <div style="flex:1">
+          <div class="analytics-label">訂單數</div>
+          <div class="analytics-value">${count}</div>
+          <div style="font-size:0.65rem;color:var(--muted);margin-top:4px">目標 ${goalCount} 單</div>
+        </div>
+        <div class="gauge-wrap">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="28" class="gauge-bg" stroke-width="5" fill="none"/>
+            <circle cx="32" cy="32" r="28" class="gauge-fg" stroke-width="5" fill="none"
+              stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+          </svg>
+          <span class="gauge-text">${gaugePct}%</span>
+        </div>
+      </div>
+    </div>
+    <div class="analytics-stat">
+      <div class="analytics-stat-row">
+        <div style="flex:1">
+          <div class="analytics-label">平均客單價</div>
+          <div class="analytics-value">$${avg}</div>
+          ${unbilled.length ? `<div style="font-size:0.65rem;color:var(--muted);margin-top:4px">未開單 $${unbilledTotal} / 已開單 $${billedTotal}</div>` : ''}
+        </div>
+        ${sparkline(histAvg, '#3b82f6')}
+      </div>
+    </div>
   `;
+
+  // 歷代每月銷售（取最近 5 天）
+  const monthlyBox = document.getElementById('monthlySalesBox');
+  if (monthlyBox) {
+    const recent = (state.history || []).slice(0, 5);
+    if (recent.length === 0) {
+      monthlyBox.innerHTML = `<div style="color:var(--muted);font-size:0.78rem;padding:14px 0;text-align:center">尚無歷史資料</div>`;
+    } else {
+      const monthlyTotal = recent.reduce((s,h) => s + (h.revenue || 0), 0);
+      const weeklyTotal  = recent.slice(0, 7).reduce((s,h) => s + (h.revenue || 0), 0);
+      monthlyBox.innerHTML = `
+        ${recent.map(h => `
+          <div class="month-row">
+            <span class="ml">${h.date}</span>
+            <span class="mv">$${(h.revenue||0).toLocaleString()}</span>
+          </div>
+        `).join('')}
+        <div class="month-row" style="border-top:2px solid var(--border-hi);margin-top:6px;padding-top:12px">
+          <span class="ml" style="color:var(--text);font-weight:700">本月總計</span>
+          <span class="mv" style="font-size:1rem">$${monthlyTotal.toLocaleString()}</span>
+        </div>
+        <div class="month-row">
+          <span class="ml" style="color:var(--text);font-weight:700">本週總計</span>
+          <span class="mv">$${weeklyTotal.toLocaleString()}</span>
+        </div>
+      `;
+    }
+  }
 
   // 歷史記錄
   const histDiv = document.getElementById('historyDays');

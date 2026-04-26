@@ -384,9 +384,8 @@ sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 .ob-cancel:hover { background: #8f2020; }
 
 /* ── ACCOUNTING ── */
-.acc-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-@media (max-width: 1100px) { .acc-layout { grid-template-columns: 1fr 1fr; } .acc-layout > div:first-child { grid-column: span 2; } }
-@media (max-width: 720px)  { .acc-layout { grid-template-columns: 1fr; } .acc-layout > div:first-child { grid-column: auto; } }
+.acc-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 880px)  { .acc-layout { grid-template-columns: 1fr; } }
 
 .acc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 .acc-table th {
@@ -1113,7 +1112,7 @@ emoji-picker {
       </div>
     </div>
 
-    <!-- 中欄：分析 -->
+    <!-- 右欄：今日統計 + 歷代每月銷售 + 補記錄 -->
     <div>
       <div class="card">
         <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">今日統計</div>
@@ -1122,16 +1121,12 @@ emoji-picker {
         <button class="export-btn" onclick="manualCloseDay()" style="margin-top:6px;border-color:var(--primary);color:var(--primary)">📥 存入日期記錄</button>
       </div>
 
-      <!-- 歷代每月銷售 -->
       <div class="card" style="margin-top:14px">
         <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">歷代每月銷售</div>
         <div id="monthlySalesBox"></div>
       </div>
-    </div>
 
-    <!-- 右欄：補記錄 -->
-    <div>
-      <div class="card">
+      <div class="card" style="margin-top:14px">
         <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">補記錄</div>
         <div class="manual-form">
           <select id="manualStaff"></select>
@@ -3014,31 +3009,61 @@ function clearDoneOrders() {
 // ════════════════════════════════════════
 
 let expandedHistoryIdx = null;
+let accViewingDate = null; // null = 跟著今日營業日；非 null = 使用者手動選的日期
 
 function renderAccounting() {
   initManualRecordForm();
-  // 今日標題
+  // 今日標題 + 日期選擇
   const _today = getGameDay();
   const _isDeadZone = _today === null;
+  const _todayBiz = state.lastResetDate || _today || '';
   const _isOldDay = !_isDeadZone && state.lastResetDate && state.lastResetDate !== _today;
-  document.getElementById('accDayTitle').textContent = `今日記錄（${state.lastResetDate || _today || '—'}）`;
+  const _displayDate = accViewingDate || _todayBiz || '';
+  const _isViewingToday = !accViewingDate || accViewingDate === _todayBiz;
+
+  // 同步日期選擇器（不要在 input 上重複綁定 change，這裡只更新 value）
+  const _accPick = document.getElementById('accDatePick');
+  if (_accPick) {
+    if (_accPick.value !== _displayDate) _accPick.value = _displayDate;
+    if (!_accPick._wired) {
+      _accPick._wired = true;
+      _accPick.addEventListener('change', e => {
+        accViewingDate = e.target.value || null;
+        renderAccounting();
+      });
+    }
+  }
+
+  document.getElementById('accDayTitle').textContent =
+    `${_isViewingToday ? '今日' : '歷史'}記錄（${_displayDate || '—'}）`;
   const _warn = document.getElementById('accDateWarn');
   if (_warn) {
-    if (_isOldDay) {
+    if (_isOldDay && _isViewingToday) {
       _warn.style.display = 'flex';
-      _warn.innerHTML = `<span style="flex:1;color:var(--primary)">⚠ 日期已過，目前顯示的是 <b>${state.lastResetDate}</b> 的記錄，今日為 <b>${_today}</b></span><button onclick="manualCloseDay()" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">結算並開新一天</button>`;
-    } else if (_isDeadZone) {
+      _warn.innerHTML = `<span style="color:var(--primary)">⚠ 上個營業日（<b>${state.lastResetDate}</b>）尚未存入。今日為 <b>${_today}</b>，請按右側「📥 存入日期記錄」結算。</span>`;
+    } else if (_isDeadZone && _isViewingToday) {
       _warn.style.display = 'flex';
       _warn.innerHTML = `<span style="color:var(--muted)">⏳ 換日空窗期（04:00 – 20:00），下一個營業日將於 20:00 開始</span>`;
+    } else if (!_isViewingToday) {
+      _warn.style.display = 'flex';
+      _warn.innerHTML = `<span style="color:var(--muted)">📜 檢視歷史日期 <b>${accViewingDate}</b>（唯讀）。<a href="#" onclick="event.preventDefault();accViewingDate=null;renderAccounting()" style="color:var(--primary);margin-left:8px">← 回到今日</a></span>`;
     } else {
       _warn.style.display = 'none';
     }
   }
 
-  // 今日訂單
+  // 決定要顯示的訂單來源：今日 → state.completed；歷史 → 從 history 找
+  const _displayRecords = _isViewingToday
+    ? state.completed
+    : ((state.history || []).find(d => d.date === accViewingDate)?.completed || []);
+
+  // 訂單表（依檢視日期）
   const tbody = document.getElementById('accBody');
-  const billed   = state.completed.filter(o => !o.unbilled);
-  const unbilled = state.completed.filter(o =>  o.unbilled);
+  const billed   = _displayRecords.filter(o => !o.unbilled);
+  const unbilled = _displayRecords.filter(o =>  o.unbilled);
+  // 今日統計專用（永遠基於 state.completed，不受檢視日期影響）
+  const _todBilled   = state.completed.filter(o => !o.unbilled);
+  const _todUnbilled = state.completed.filter(o =>  o.unbilled);
 
   function statusBadge(o) {
     if (o.unbilled) return `<span class="acc-badge unbilled">未開單</span>`;
@@ -3065,8 +3090,8 @@ function renderAccounting() {
     </tr>`;
   }
 
-  if (state.completed.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="acc-empty">今日尚無結帳記錄</td></tr>`;
+  if (_displayRecords.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="acc-empty">${_isViewingToday ? '今日' : _displayDate} 尚無結帳記錄</td></tr>`;
   } else {
     let html = '';
     if (billed.length) {
@@ -3081,9 +3106,9 @@ function renderAccounting() {
     tbody.innerHTML = html;
   }
 
-  // 今日統計（含圖表）
-  const billedTotal   = billed.reduce((s, o) => s + o.total, 0);
-  const unbilledTotal = unbilled.reduce((s, o) => s + o.total, 0);
+  // 今日統計（含圖表）— 永遠用 state.completed，不受日期選擇影響
+  const billedTotal   = _todBilled.reduce((s, o) => s + o.total, 0);
+  const unbilledTotal = _todUnbilled.reduce((s, o) => s + o.total, 0);
   const total = billedTotal + unbilledTotal;
   const count = state.completed.length;
   const avg = count ? Math.round(total / count) : 0;
@@ -3168,7 +3193,7 @@ function renderAccounting() {
         <div style="flex:1">
           <div class="analytics-label">平均客單價</div>
           <div class="analytics-value">$${avg}</div>
-          ${unbilled.length ? `<div style="font-size:0.65rem;color:var(--muted);margin-top:4px">未開單 $${unbilledTotal} / 已開單 $${billedTotal}</div>` : ''}
+          ${_todUnbilled.length ? `<div style="font-size:0.65rem;color:var(--muted);margin-top:4px">未開單 $${unbilledTotal} / 已開單 $${billedTotal}</div>` : ''}
         </div>
         ${sparkline(histAvg, '#3b82f6')}
       </div>

@@ -1448,6 +1448,7 @@ function initFirebase(cfg) {
 }
 
 let configReady = false;
+let menuReady   = false;
 function subscribeDB() {
   if (_dbSubscribed) return;
   _dbSubscribed = true;
@@ -1474,7 +1475,9 @@ function subscribeDB() {
     if (d) {
       const _localMenuBackup = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
       const _toArr = m => !m ? null : Array.isArray(m) ? m : Object.values(m);
-      state.menu        = _toArr(d.menu) || _toArr(d.menuDefault) || state.menu || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
+      const _fbMenu = _toArr(d.menu) || _toArr(d.menuDefault);
+      if (_fbMenu && _fbMenu.length > 0) { state.menu = _fbMenu; menuReady = true; }
+      else if (!menuReady) state.menu = state.menu || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
       state.ingredients = d.ingredients || state.ingredients || JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
       state.recipes     = d.recipes     || state.recipes     || JSON.parse(JSON.stringify(DEFAULT_RECIPES));
       state.admins      = d.admins      || state.admins;
@@ -1595,9 +1598,9 @@ function saveConfig() {
 
 // saveMenu：只在明確編輯菜單/食材/食譜時才呼叫
 function saveMenu() {
-  cacheLocal();
-  if (!configReady) return;
+  if (!configReady || !menuReady) return;
   if (!state.menu || state.menu.length === 0) return;
+  cacheLocal();
   if (db) R.config().update({
     menu: state.menu,
     ingredients: state.ingredients,

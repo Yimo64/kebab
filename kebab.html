@@ -384,9 +384,8 @@ sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 .ob-cancel:hover { background: #8f2020; }
 
 /* ── ACCOUNTING ── */
-.acc-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-@media (max-width: 1100px) { .acc-layout { grid-template-columns: 1fr 1fr; } .acc-layout > div:first-child { grid-column: span 2; } }
-@media (max-width: 720px)  { .acc-layout { grid-template-columns: 1fr; } .acc-layout > div:first-child { grid-column: auto; } }
+.acc-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 880px)  { .acc-layout { grid-template-columns: 1fr; } }
 
 .acc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 .acc-table th {
@@ -1113,7 +1112,7 @@ emoji-picker {
       </div>
     </div>
 
-    <!-- 中欄：分析 -->
+    <!-- 右欄：今日統計 + 歷代每月銷售 + 補記錄 -->
     <div>
       <div class="card">
         <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">今日統計</div>
@@ -1122,16 +1121,12 @@ emoji-picker {
         <button class="export-btn" onclick="manualCloseDay()" style="margin-top:6px;border-color:var(--primary);color:var(--primary)">📥 存入日期記錄</button>
       </div>
 
-      <!-- 歷代每月銷售 -->
       <div class="card" style="margin-top:14px">
         <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">歷代每月銷售</div>
         <div id="monthlySalesBox"></div>
       </div>
-    </div>
 
-    <!-- 右欄：補記錄 -->
-    <div>
-      <div class="card">
+      <div class="card" style="margin-top:14px">
         <div class="sec-title" style="font-size:0.85rem;letter-spacing:0.5px;text-transform:none;color:var(--text);font-weight:700">補記錄</div>
         <div class="manual-form">
           <select id="manualStaff"></select>
@@ -1494,19 +1489,21 @@ async function doLogout() {
 
 const DEFAULT_MENU = [
   { name: 'PITA餅沙威瑪', price: 600 },
-  { name: '沙威瑪捲餅', price: 600 },
-  { name: '炸薯條', price: 300 },
-  { name: '炸鷹嘴豆餅', price: 300 },
-  { name: '氣泡水', price: 100 },
-  { name: '養樂多', price: 100 },
-  { name: '柳橙汁', price: 100 },
-  { name: '綠茶', price: 150 },
-  { name: '奶茶', price: 150 },
-  { name: '檸檬茶', price: 150 },
-  { name: '咖啡', price: 200 },
-  { name: '運動飲料', price: 200 },
-  { name: '能量飲料', price: 200 },
-  { name: '套餐(餅+炸物)', price: 800 },
+  { name: '沙威瑪捲餅',   price: 600 },
+  { name: '炸薯條',       price: 300 },
+  { name: '炸鷹嘴豆餅',   price: 300 },
+  { name: '氣泡水',       price: 50  },
+  { name: '養樂多',       price: 50  },
+  { name: '柳橙汁',       price: 50  },
+  { name: '綠茶',         price: 120 },
+  { name: '奶茶',         price: 120 },
+  { name: '檸檬茶',       price: 120 },
+  { name: '多多綠茶',     price: 120 },
+  { name: '咖啡',         price: 200 },
+  { name: '運動飲料',     price: 200 },
+  { name: '能量飲料',     price: 200 },
+  { name: '冰淇淋',       price: 200 },
+  { name: '套餐',         price: 800 },
 ];
 
 const DEFAULT_INGREDIENTS = [
@@ -1542,7 +1539,7 @@ const DEFAULT_RECIPES = {
   '沙威瑪捲餅':    [{ id:'wrap', amount:1 }, { id:'meat', amount:0.25 }, ...SHAWARMA_FILLINGS],
   '炸薯條':        [{ id:'fries', amount:0.25 }],
   '炸鷹嘴豆餅':    [{ id:'falafel', amount:0.25 }],
-  '套餐(餅+炸物)': [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, { id:'fries', amount:0.25 }, ...SHAWARMA_FILLINGS],
+  '套餐':         [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, { id:'fries', amount:0.25 }, ...SHAWARMA_FILLINGS],
 };
 
 // ════════════════════════════════════════
@@ -1570,11 +1567,13 @@ function getGameDay() {
 // ════════════════════════════════════════
 // FIREBASE — 每筆訂單獨立節點，避免覆蓋衝突
 // 路徑結構：
-//   kebab/orders/{id}      ← 進行中訂單
-//   kebab/completed/{id}   ← 今日已取餐
-//   kebab/history/{date}   ← 每日結算記錄
-//   kebab/config           ← 菜單/食材/設定
-//   kebab/nextId           ← 原子計數器
+//   kebab/orders/{id}        ← 進行中訂單
+//   kebab/completed_v2/{id}  ← 今日已取餐（v2：隔離舊版自動結算 bug）
+//   kebab/history/{date}     ← 每日結算記錄
+//   kebab/config             ← 菜單/食材/設定
+//   kebab/nextId             ← 原子計數器
+// 註：舊版 index.html 在午夜會誤清 kebab/completed，因此改用 _v2 路徑，
+//     讓未更新的舊版分頁完全摸不到新資料。
 // ════════════════════════════════════════
 
 let db = null;
@@ -1587,8 +1586,8 @@ function loadFbConfig() {
 const R = {
   orders:   () => db.ref('kebab/orders'),
   order:    id => db.ref('kebab/orders/' + id),
-  comps:    () => db.ref('kebab/completed'),
-  comp:     id => db.ref('kebab/completed/' + id),
+  comps:    () => db.ref('kebab/completed_v2'),
+  comp:     id => db.ref('kebab/completed_v2/' + id),
   history:  () => db.ref('kebab/history'),
   histDay:  d  => db.ref('kebab/history/' + d.replace(/-/g,'_')),
   config:   () => db.ref('kebab/config'),
@@ -1631,6 +1630,19 @@ let menuReady   = false;
 function subscribeDB() {
   if (_dbSubscribed) return;
   _dbSubscribed = true;
+
+  // 一次性遷移：把舊路徑 kebab/completed 內容搬到 kebab/completed_v2
+  // 舊版 index.html 在午夜會自動清空 kebab/completed，本機改用 _v2 路徑後不受影響。
+  // 這段只負責把現存資料補進 _v2，舊路徑保留原樣讓舊版分頁繼續用。
+  db.ref('kebab/completed').once('value', snap => {
+    const old = snap.val();
+    if (!old) return;
+    const updates = {};
+    Object.entries(old).forEach(([id, o]) => {
+      if (o && typeof o === 'object') updates['kebab/completed_v2/' + id] = o;
+    });
+    if (Object.keys(updates).length > 0) db.ref().update(updates).catch(fbErr);
+  });
 
   // 訂單（高頻，獨立節點）
   R.orders().on('value', snap => {
@@ -2738,7 +2750,7 @@ async function updateDefaultMenu() {
 }
 
 async function restoreDefaultMenu() {
-  // 優先從 Firebase menuDefault 讀，沒有再用 localStorage
+  // 優先順序：Firebase menuDefault → localStorage gem_defaultMenu → 程式碼內建 DEFAULT_MENU
   const fromFirebase = await new Promise(res => {
     if (!db) { res(null); return; }
     R.config().once('value', snap => {
@@ -2746,16 +2758,22 @@ async function restoreDefaultMenu() {
       res((d && d.menuDefault) ? d.menuDefault : null);
     }, () => res(null));
   });
-  const backup = fromFirebase
-    || (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
-  if (!backup || !backup.length) { uiAlert('找不到默認菜單備份，請先按「更新為默認菜單」儲存一次。'); return; }
-  const ok = await uiConfirm(`確定還原為默認菜單（${backup.length} 個品項）？目前菜單會被覆蓋。`);
+  const fromLocal = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
+  const _toArr = m => !m ? null : Array.isArray(m) ? m : Object.values(m);
+  let backup = _toArr(fromFirebase) || _toArr(fromLocal);
+  let source = fromFirebase ? 'Firebase 備份' : (fromLocal ? '本機備份' : null);
+  if (!backup || !backup.length) {
+    backup = JSON.parse(JSON.stringify(DEFAULT_MENU));
+    source = '程式內建（沒有備份，使用最初版菜單）';
+  }
+  const ok = await uiConfirm(`從「${source}」還原 ${backup.length} 個品項？目前菜單會被覆蓋。`);
   if (!ok) return;
-  state.menu = Array.isArray(backup) ? backup : Object.values(backup);
+  state.menu = backup;
+  menuReady = true;
   saveMenu();
   renderMenuGrid();
   renderMenuEditor();
-  uiAlert(`✅ 已還原為默認菜單（${state.menu.length} 個品項）`);
+  uiAlert(`✅ 已還原（${state.menu.length} 個品項，來源：${source}）`);
 }
 
 // ── Menu editor (pointer-based drag, CEF/iframe friendly)
@@ -3011,31 +3029,78 @@ function clearDoneOrders() {
 // ════════════════════════════════════════
 
 let expandedHistoryIdx = null;
+let accViewingDate = null; // null = 跟著今日營業日；非 null = 使用者手動選的日期
 
 function renderAccounting() {
   initManualRecordForm();
-  // 今日標題
+
+  // ── 時間／換日邏輯 ───────────────────────────────
+  // 規則：
+  //  (1) 過了 04:00（前一個營業日的自然結束點）後，若 lastResetDate 比日曆今天早：
+  //      • 沒有未存入的訂單 → 自動把 lastResetDate 推進到日曆今天（「自動換日」）
+  //      • 有未存入的訂單 → 跳警示，要使用者先按「📥 存入日期記錄」
+  //  (2) 04:00 之前不動作（夜班還在前一個營業日範圍內）
+  const _now = new Date();
+  const _h = _now.getHours();
+  const _todayCal = localDateStr(_now);
+  const _hasUnsaved = state.completed.length > 0;
+  const _shouldHaveSettled = _h >= 4 && state.lastResetDate && state.lastResetDate < _todayCal;
+  if (_shouldHaveSettled && !_hasUnsaved && state.lastResetDate !== _todayCal) {
+    state.lastResetDate = _todayCal;
+    saveConfig();
+  }
+  const _staleWarn = _shouldHaveSettled && _hasUnsaved;
+
+  // 今日標題 + 日期選擇
   const _today = getGameDay();
   const _isDeadZone = _today === null;
-  const _isOldDay = !_isDeadZone && state.lastResetDate && state.lastResetDate !== _today;
-  document.getElementById('accDayTitle').textContent = `今日記錄（${state.lastResetDate || _today || '—'}）`;
+  const _todayBiz = state.lastResetDate || _today || '';
+  const _displayDate = accViewingDate || _todayBiz || '';
+  const _isViewingToday = !accViewingDate || accViewingDate === _todayBiz;
+
+  // 同步日期選擇器（不要在 input 上重複綁定 change，這裡只更新 value）
+  const _accPick = document.getElementById('accDatePick');
+  if (_accPick) {
+    if (_accPick.value !== _displayDate) _accPick.value = _displayDate;
+    if (!_accPick._wired) {
+      _accPick._wired = true;
+      _accPick.addEventListener('change', e => {
+        accViewingDate = e.target.value || null;
+        renderAccounting();
+      });
+    }
+  }
+
+  document.getElementById('accDayTitle').textContent =
+    `${_isViewingToday ? '今日' : '歷史'}記錄（${_displayDate || '—'}）`;
   const _warn = document.getElementById('accDateWarn');
   if (_warn) {
-    if (_isOldDay) {
+    if (_staleWarn && _isViewingToday) {
       _warn.style.display = 'flex';
-      _warn.innerHTML = `<span style="flex:1;color:var(--primary)">⚠ 日期已過，目前顯示的是 <b>${state.lastResetDate}</b> 的記錄，今日為 <b>${_today}</b></span><button onclick="manualCloseDay()" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">結算並開新一天</button>`;
-    } else if (_isDeadZone) {
+      _warn.innerHTML = `<span style="color:var(--primary)">⚠ 上個營業日（<b>${state.lastResetDate}</b>）尚未存入。今天是 <b>${_todayCal}</b>，請按右側「📥 存入日期記錄」結算。</span>`;
+    } else if (_isDeadZone && _isViewingToday) {
       _warn.style.display = 'flex';
       _warn.innerHTML = `<span style="color:var(--muted)">⏳ 換日空窗期（04:00 – 20:00），下一個營業日將於 20:00 開始</span>`;
+    } else if (!_isViewingToday) {
+      _warn.style.display = 'flex';
+      _warn.innerHTML = `<span style="color:var(--muted)">📜 檢視歷史日期 <b>${accViewingDate}</b>（唯讀）。<a href="#" onclick="event.preventDefault();accViewingDate=null;renderAccounting()" style="color:var(--primary);margin-left:8px">← 回到今日</a></span>`;
     } else {
       _warn.style.display = 'none';
     }
   }
 
-  // 今日訂單
+  // 決定要顯示的訂單來源：今日 → state.completed；歷史 → 從 history 找
+  const _displayRecords = _isViewingToday
+    ? state.completed
+    : ((state.history || []).find(d => d.date === accViewingDate)?.completed || []);
+
+  // 訂單表（依檢視日期）
   const tbody = document.getElementById('accBody');
-  const billed   = state.completed.filter(o => !o.unbilled);
-  const unbilled = state.completed.filter(o =>  o.unbilled);
+  const billed   = _displayRecords.filter(o => !o.unbilled);
+  const unbilled = _displayRecords.filter(o =>  o.unbilled);
+  // 今日統計專用（永遠基於 state.completed，不受檢視日期影響）
+  const _todBilled   = state.completed.filter(o => !o.unbilled);
+  const _todUnbilled = state.completed.filter(o =>  o.unbilled);
 
   function statusBadge(o) {
     if (o.unbilled) return `<span class="acc-badge unbilled">未開單</span>`;
@@ -3062,8 +3127,8 @@ function renderAccounting() {
     </tr>`;
   }
 
-  if (state.completed.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="acc-empty">今日尚無結帳記錄</td></tr>`;
+  if (_displayRecords.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="acc-empty">${_isViewingToday ? '今日' : _displayDate} 尚無結帳記錄</td></tr>`;
   } else {
     let html = '';
     if (billed.length) {
@@ -3078,9 +3143,9 @@ function renderAccounting() {
     tbody.innerHTML = html;
   }
 
-  // 今日統計（含圖表）
-  const billedTotal   = billed.reduce((s, o) => s + o.total, 0);
-  const unbilledTotal = unbilled.reduce((s, o) => s + o.total, 0);
+  // 今日統計（含圖表）— 永遠用 state.completed，不受日期選擇影響
+  const billedTotal   = _todBilled.reduce((s, o) => s + o.total, 0);
+  const unbilledTotal = _todUnbilled.reduce((s, o) => s + o.total, 0);
   const total = billedTotal + unbilledTotal;
   const count = state.completed.length;
   const avg = count ? Math.round(total / count) : 0;
@@ -3165,7 +3230,7 @@ function renderAccounting() {
         <div style="flex:1">
           <div class="analytics-label">平均客單價</div>
           <div class="analytics-value">$${avg}</div>
-          ${unbilled.length ? `<div style="font-size:0.65rem;color:var(--muted);margin-top:4px">未開單 $${unbilledTotal} / 已開單 $${billedTotal}</div>` : ''}
+          ${_todUnbilled.length ? `<div style="font-size:0.65rem;color:var(--muted);margin-top:4px">未開單 $${unbilledTotal} / 已開單 $${billedTotal}</div>` : ''}
         </div>
         ${sparkline(histAvg, '#3b82f6')}
       </div>
@@ -3304,29 +3369,7 @@ function exportAcc() {
 }
 
 
-// ── 每日結算
-function checkDailyReset() {
-  const today = getGameDay();
-  if (today === null) {
-    // 換日空窗期（04:00–20:00）：若上一個營業日尚未結算則自動結算
-    const now = new Date();
-    const yest = new Date(now);
-    yest.setDate(yest.getDate() - 1);
-    const yestStr = localDateStr(yest);
-    if (state.lastResetDate === yestStr) {
-      if (state.completed.length > 0) closeDayAs(state.lastResetDate);
-      else { state.lastResetDate = yestStr; saveConfig(); }
-    }
-    return;
-  }
-  if (state.lastResetDate && state.lastResetDate !== today) {
-    closeDayAs(state.lastResetDate);
-  } else if (!state.lastResetDate) {
-    state.lastResetDate = today;
-    saveConfig();
-  }
-}
-
+// ── 每日結算（只有 manualCloseDay 會呼叫；自動結算已徹底移除）
 function closeDayAs(date) {
   if (state.completed.length > 0) {
     const existingIdx = state.history.findIndex(d => d.date === date);

@@ -6,7 +6,9 @@
       "Bash(node *)",
       "Bash(node --check /tmp/k1.js)",
       "Bash(node --check /tmp/k2.js)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "mcp__stitch__get_screen",
+      "Bash(curl *)"
     ]
   }
 }

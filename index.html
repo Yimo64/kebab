@@ -565,20 +565,40 @@ sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 /* ── POS ANNOUNCEMENT BANNER ── */
 #posBanner { margin-bottom: 14px; }
 .pos-banner-wrap {
-  background: linear-gradient(135deg, #14162280, #111318);
-  border: 1px solid rgba(232,145,58,0.45);
-  border-radius: 12px; overflow: hidden;
-  box-shadow: 0 0 20px rgba(232,145,58,0.08), 0 2px 12px rgba(0,0,0,0.3);
+  display: flex; align-items: stretch; gap: 8px;
+  background: transparent; border: none; border-radius: 0;
+  box-shadow: none; overflow: visible;
+}
+.pos-banner-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px; border-radius: 22px;
+  background: rgba(240,146,58,0.1);
+  border: 1px solid rgba(240,146,58,0.4);
+  font-size: 0.78rem; font-weight: 700; color: var(--primary);
+  white-space: nowrap; cursor: pointer; transition: all 0.15s;
+  letter-spacing: 0.3px; font-family: inherit;
+}
+.pos-banner-pill:hover { background: rgba(240,146,58,0.15); }
+.pos-banner-pill.muted {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border-hi);
+  color: var(--text-soft);
+}
+.pos-banner-pill.muted:hover { color: var(--text); border-color: var(--primary); }
+.pos-banner-content {
+  flex: 1; padding: 9px 16px; border-radius: 22px;
+  background: rgba(240,146,58,0.06);
+  border: 1px solid rgba(240,146,58,0.22);
+  font-size: 0.78rem; color: var(--text-soft);
+  display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; min-width: 0;
 }
 .pos-banner-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 14px; border-bottom: 1px solid rgba(232,145,58,0.2);
-  background: rgba(232,145,58,0.07);
+  display: none;
 }
 .pos-banner-label {
-  font-size: 0.7rem; font-weight: 800; letter-spacing: 1.5px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 1.8px;
   text-transform: uppercase; color: var(--primary);
-  text-shadow: 0 0 10px rgba(232,145,58,0.4);
 }
 .pos-banner-toggle {
   background: transparent; border: none; color: var(--muted);
@@ -1855,20 +1875,24 @@ function renderPosBanner() {
   if (!el) return;
   const anns = (state.announcements || []).filter(a => a.showOnPos);
   if (anns.length === 0) { el.innerHTML = ''; return; }
-  const collapsed = el.dataset.collapsed === '1';
+  const expanded = el.dataset.expanded === '1';
+
+  // 藥丸列：橙色「公告·N則」按鈕 + 首則公告預覽
+  const first = anns[0];
+  const previewText = first ? `${first.pinned?'📌 ':''}${first.title}${first.content?` ${first.content.slice(0, 60)}`:''}` : '';
+
   el.innerHTML = `
     <div class="pos-banner-wrap">
-      <div class="pos-banner-head">
-        <span class="pos-banner-label">📢 公告 · ${anns.length} 則</span>
-        <button class="pos-banner-toggle" onclick="
-          const b=document.getElementById('posBanner');
-          const c=b.dataset.collapsed==='1';
-          b.dataset.collapsed=c?'0':'1';
-          b.querySelector('.pos-banner-list').style.display=c?'':'none';
-          this.textContent=c?'∧':'∨';
-        ">${collapsed ? '∨' : '∧'}</button>
-      </div>
-      <div class="pos-banner-list" style="${collapsed ? 'display:none' : ''}">
+      <button class="pos-banner-pill" onclick="
+        const b=document.getElementById('posBanner');
+        const e=b.dataset.expanded==='1';
+        b.dataset.expanded=e?'0':'1';
+        b.querySelector('.pos-banner-expanded').style.display=e?'none':'block';
+      ">📢 公告 · ${anns.length}則</button>
+      <div class="pos-banner-content">${previewText}</div>
+    </div>
+    <div class="pos-banner-expanded" style="${expanded?'':'display:none'};margin-top:10px">
+      <div style="background:linear-gradient(135deg,rgba(20,22,34,0.95),rgba(12,15,26,0.98));border:1px solid rgba(240,146,58,0.35);border-left:3px solid var(--primary);border-radius:14px;overflow:hidden">
         ${anns.map(a => `
           <div class="pos-ann-row${a.pinned?' is-pinned':''}">
             <div style="flex:1">

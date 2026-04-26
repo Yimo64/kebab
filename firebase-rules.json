@@ -24,6 +24,12 @@
         }
       },
 
+      "completed_v2": {
+        "$orderId": {
+          ".validate": "newData.hasChildren(['id','items','total','createdAt']) && newData.child('total').isNumber()"
+        }
+      },
+
       "history": {
         "$date": {
           ".validate": "newData.hasChildren(['date','revenue','orders']) && newData.child('revenue').isNumber()"

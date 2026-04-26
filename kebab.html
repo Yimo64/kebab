@@ -1519,9 +1519,24 @@ function subscribeDB() {
 
   // 歷史記錄
   R.history().on('value', snap => {
-    state.history = snap.val()
-      ? Object.values(snap.val()).sort((a,b)=>b.date.localeCompare(a.date))
-      : [];
+    const raw = snap.val() ? Object.values(snap.val()) : [];
+    state.history = raw.map(day => {
+      if (!day.completed) return day;
+      const seen = new Set();
+      const deduped = day.completed.filter(o => {
+        const k = o.id || String(o.createdAt);
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      });
+      if (deduped.length === day.completed.length) return day;
+      const revenue = deduped.reduce((s,o) => s + o.total, 0);
+      const itemCount = {};
+      deduped.forEach(o => o.items.forEach(i => { itemCount[i.name] = (itemCount[i.name]||0) + i.qty; }));
+      const fixed = { ...day, completed: deduped, orders: deduped.length, revenue,
+        topItems: Object.entries(itemCount).sort((a,b) => b[1]-a[1]).slice(0,5) };
+      if (db) R.histDay(fixed.date).set(fixed).catch(fbErr);
+      return fixed;
+    }).sort((a,b) => b.date.localeCompare(a.date));
     cacheLocal();
     renderAccounting();
   });
@@ -3005,8 +3020,8 @@ function closeDayAs(date) {
   if (state.completed.length > 0) {
     const existingIdx = state.history.findIndex(d => d.date === date);
     const base = existingIdx >= 0 ? [...state.history[existingIdx].completed] : [];
-    const existingIds = new Set(base.map(o => o.id));
-    const merged = [...base, ...JSON.parse(JSON.stringify(state.completed)).filter(o => !existingIds.has(o.id))];
+    const existingKeys = new Set(base.map(o => o.id || String(o.createdAt)));
+    const merged = [...base, ...JSON.parse(JSON.stringify(state.completed)).filter(o => !existingKeys.has(o.id || String(o.createdAt)))];
     const revenue = merged.reduce((s, o) => s + o.total, 0);
     const itemCount = {};
     merged.forEach(o => o.items.forEach(i => {

@@ -926,7 +926,7 @@ emoji-picker {
         <div class="sec-title">今日統計</div>
         <div id="accSummary"></div>
         <button class="export-btn" onclick="exportAcc()">📋 複製今日記帳文字</button>
-        <button class="export-btn" style="margin-top:6px;border-color:var(--primary);color:var(--primary)" onclick="manualCloseDay()">⏹ 手動結算今日</button>
+        <button class="export-btn" style="margin-top:6px;border-color:var(--primary);color:var(--primary)" onclick="manualCloseDay()">📥 存入日期記錄</button>
       </div>
       <div class="card" style="margin-top:12px">
         <div class="sec-title">補記錄</div>
@@ -998,6 +998,7 @@ emoji-picker {
   <div class="ui-dlg-card">
     <div id="uiDlgMsg" class="ui-dlg-msg"></div>
     <input id="uiDlgInput" type="text" onkeydown="if(event.key==='Enter')_dlgOk()">
+    <input id="uiDlgDate" type="date" style="display:none;width:100%;margin-bottom:14px;color-scheme:dark" onkeydown="if(event.key==='Enter')_dlgOk()">
     <div class="ui-dlg-btns">
       <button id="uiDlgCancel" class="btn-dlg-cancel" onclick="_dlgCancel()">取消</button>
       <button id="uiDlgOk" class="btn-small btn-amber" onclick="_dlgOk()">確定</button>
@@ -1152,9 +1153,12 @@ function _openDialog(msg, mode, def) {
   return new Promise(resolve => {
     _dlgResolve = resolve; _dlgMode = mode;
     document.getElementById('uiDlgMsg').textContent = msg;
-    const inp = document.getElementById('uiDlgInput');
+    const inp  = document.getElementById('uiDlgInput');
+    const dateInp = document.getElementById('uiDlgDate');
     const cancel = document.getElementById('uiDlgCancel');
     const ok = document.getElementById('uiDlgOk');
+    dateInp.style.display = mode === 'date' ? '' : 'none';
+    if (mode === 'date') { dateInp.value = def || localDateStr(new Date()); setTimeout(() => dateInp.focus(), 60); }
     inp.style.display = mode === 'prompt' ? '' : 'none';
     cancel.style.display = mode === 'alert' ? 'none' : '';
     ok.textContent = mode === 'alert' ? '好' : '確定';
@@ -1163,7 +1167,8 @@ function _openDialog(msg, mode, def) {
   });
 }
 function _dlgOk() {
-  const v = _dlgMode === 'prompt' ? document.getElementById('uiDlgInput').value
+  const v = _dlgMode === 'date'    ? document.getElementById('uiDlgDate').value
+          : _dlgMode === 'prompt'  ? document.getElementById('uiDlgInput').value
           : _dlgMode === 'confirm' ? true : undefined;
   document.getElementById('uiDialog').classList.remove('open');
   if (_dlgResolve) { _dlgResolve(v); _dlgResolve = null; }
@@ -1176,6 +1181,7 @@ function _dlgCancel() {
 function uiAlert(msg) { return _openDialog(msg, 'alert'); }
 function uiConfirm(msg) { return _openDialog(msg, 'confirm'); }
 function uiPrompt(msg, def) { return _openDialog(msg, 'prompt', def); }
+function uiDatePick(msg, def) { return _openDialog(msg, 'date', def); }
 document.addEventListener('keydown', e => {
   if (!document.getElementById('uiDialog').classList.contains('open')) return;
   if (e.key === 'Escape') { e.preventDefault(); _dlgCancel(); }
@@ -1340,6 +1346,11 @@ const DEFAULT_RECIPES = {
 // STATE
 // ════════════════════════════════════════
 
+// 本地日期字串（不用 toISOString 避免 UTC 偏移問題）
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 // 營業日：20:00 – 隔天 04:00；04:00–20:00 為換日空窗期（回傳 null）
 function getGameDay() {
   const now = new Date();
@@ -1347,9 +1358,9 @@ function getGameDay() {
   if (h < 4) {
     const d = new Date(now);
     d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d);
   }
-  if (h >= 20) return now.toISOString().split('T')[0];
+  if (h >= 20) return localDateStr(now);
   return null; // 04:00–20:00 換日空窗期
 }
 
@@ -1438,7 +1449,8 @@ function subscribeDB() {
     const d = snap.val();
     if (d) {
       const _localMenuBackup = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
-      state.menu        = d.menu        || d.menuDefault || state.menu        || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
+      const _toArr = m => !m ? null : Array.isArray(m) ? m : Object.values(m);
+      state.menu        = _toArr(d.menu) || _toArr(d.menuDefault) || state.menu || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
       state.ingredients = d.ingredients || state.ingredients || JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
       state.recipes     = d.recipes     || state.recipes     || JSON.parse(JSON.stringify(DEFAULT_RECIPES));
       state.admins      = d.admins      || state.admins;
@@ -1450,7 +1462,6 @@ function subscribeDB() {
     if (!configReady) {
       configReady = true;
       setSyncStatus('connected');
-      checkDailyReset();
       renderAll();
     } else {
       cacheLocal();
@@ -1690,7 +1701,7 @@ function renderChangelog() {
       </div>
       <textarea id="clText" placeholder="功能描述…" style="width:100%;height:60px;resize:vertical;font-size:0.82rem"></textarea>
     </div>
-    <button class="btn-small btn-amber" style="width:100%;margin-bottom:16px" onclick="const c=document.getElementById('clCompose');c.style.display='block';document.getElementById('clDate').value=new Date().toISOString().slice(0,10)">＋ 新增項目</button>
+    <button class="btn-small btn-amber" style="width:100%;margin-bottom:16px" onclick="const c=document.getElementById('clCompose');c.style.display='block';document.getElementById('clDate').value=localDateStr(new Date())">＋ 新增項目</button>
   ` : '';
 
   if (dates.length === 0) {
@@ -2555,7 +2566,7 @@ function menuDragEnd(e) {
 }
 
 function renderMenuEditor() {
-  if (!Array.isArray(state.menu)) state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
+  if (!Array.isArray(state.menu)) return; // 菜單未就緒，不渲染也不覆寫
   document.getElementById('menuEditor').innerHTML = state.menu.map((item, i) => {
     const curEmoji = item.emoji || getEmoji(item.name);
     const hasCustom = !!item.emoji;
@@ -2953,10 +2964,10 @@ function checkDailyReset() {
     const now = new Date();
     const yest = new Date(now);
     yest.setDate(yest.getDate() - 1);
-    const yestStr = yest.toISOString().split('T')[0];
+    const yestStr = localDateStr(yest);
     if (state.lastResetDate === yestStr) {
       if (state.completed.length > 0) closeDayAs(state.lastResetDate);
-      else { state.lastResetDate = null; saveConfig(); }
+      else { state.lastResetDate = yestStr; saveConfig(); }
     }
     return;
   }
@@ -2972,7 +2983,8 @@ function closeDayAs(date) {
   if (state.completed.length > 0) {
     const existingIdx = state.history.findIndex(d => d.date === date);
     const base = existingIdx >= 0 ? [...state.history[existingIdx].completed] : [];
-    const merged = [...base, ...JSON.parse(JSON.stringify(state.completed))];
+    const existingIds = new Set(base.map(o => o.id));
+    const merged = [...base, ...JSON.parse(JSON.stringify(state.completed)).filter(o => !existingIds.has(o.id))];
     const revenue = merged.reduce((s, o) => s + o.total, 0);
     const itemCount = {};
     merged.forEach(o => o.items.forEach(i => {
@@ -2990,7 +3002,7 @@ function closeDayAs(date) {
     saveHistoryDay(day);
   }
   clearAllCompleted();
-  state.lastResetDate = getGameDay();
+  state.lastResetDate = getGameDay() || localDateStr(new Date());
   saveConfig();
   renderAll();
 }
@@ -3005,7 +3017,7 @@ function initManualRecordForm() {
     sel.appendChild(o);
   });
   const dateEl = document.getElementById('manualDate');
-  if (dateEl) dateEl.value = state.lastResetDate || getGameDay() || new Date().toISOString().split('T')[0];
+  if (dateEl) dateEl.value = state.lastResetDate || getGameDay() || localDateStr(new Date());
 }
 
 function addManualRecord() {
@@ -3076,12 +3088,14 @@ function addManualRecord() {
 }
 
 async function manualCloseDay() {
-  if (!state.lastResetDate) { uiAlert('目前沒有進行中的營業日'); return; }
-  const nextDate = new Date(state.lastResetDate);
-  nextDate.setDate(nextDate.getDate() + 1);
-  const nextStr = `${nextDate.getMonth() + 1}/${nextDate.getDate()}`;
-  if (!await uiConfirm(`確定手動結算今日（${state.lastResetDate}）？\n結算後將等到 ${nextStr} 20:00 才開始新一天。`)) return;
-  closeDayAs(state.lastResetDate);
+  if (state.completed.length === 0) { uiAlert('目前沒有已取餐的訂單可存入'); return; }
+  const defaultDate = state.lastResetDate || localDateStr(new Date());
+  const date = await uiDatePick(`選擇要存入的營業日期（共 ${state.completed.length} 筆訂單）`, defaultDate);
+  if (!date) return;
+  const existing = state.history.find(d => d.date === date);
+  const mergeMsg = existing ? `⚠ ${date} 已有 ${existing.orders} 筆記錄，將合併（不重複）。確定繼續？` : `確定將 ${state.completed.length} 筆訂單存入 ${date}？`;
+  if (!await uiConfirm(mergeMsg)) return;
+  closeDayAs(date);
 }
 
 async function deleteHistory(i) {
@@ -3333,7 +3347,7 @@ initFirebase(FIREBASE_CONFIG);
 renderAll();
 renderPOS();
 setLbScope('today');
-setInterval(checkDailyReset, 60000);
+// 自動換日已停用，改為手動存入
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAnn(); document.getElementById('changelogModal').classList.remove('open'); } });
 </script>
 </body>

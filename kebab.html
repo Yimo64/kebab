@@ -546,7 +546,7 @@ sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 .menu-drag-row { display:flex; gap:6px; margin-bottom:6px; align-items:center; border-radius:7px; border: 1px solid transparent; transition: background 0.1s, border-color 0.1s; }
 .menu-drag-row.drag-over { background: rgba(232,145,58,0.1); border-color: var(--primary); }
 .menu-drag-row.dragging { opacity: 0.45; }
-.drag-handle { cursor: grab; color: var(--muted); font-size: 1.1rem; padding: 2px 4px; user-select: none; flex-shrink: 0; line-height: 1; }
+.drag-handle { cursor: grab; color: var(--muted); font-size: 1.1rem; padding: 2px 4px; user-select: none; flex-shrink: 0; line-height: 1; touch-action: none; }
 .drag-handle:active { cursor: grabbing; color: var(--primary); }
 
 /* ── EMOJI PICKER ── */
@@ -2758,38 +2758,62 @@ async function restoreDefaultMenu() {
   uiAlert(`✅ 已還原為默認菜單（${state.menu.length} 個品項）`);
 }
 
-// ── Menu editor
+// ── Menu editor (pointer-based drag, CEF/iframe friendly)
 let _menuDragIdx = null;
+let _menuDragRow = null;
+let _menuDragOverIdx = null;
 
-function menuDragStart(e, i) {
-  _menuDragIdx = i;
-  e.dataTransfer.effectAllowed = 'move';
-  requestAnimationFrame(() => e.currentTarget.classList.add('dragging'));
+function _menuClearOverHighlights() {
+  document.querySelectorAll('#menuEditor .menu-drag-row.drag-over').forEach(r => r.classList.remove('drag-over'));
 }
-function menuDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  e.currentTarget.classList.add('drag-over');
+
+function _menuRowFromPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return null;
+  return el.closest('#menuEditor .menu-drag-row');
 }
-function menuDragLeave(e) {
-  e.currentTarget.classList.remove('drag-over');
+
+function _menuPointerMove(e) {
+  if (_menuDragIdx === null) return;
+  const row = _menuRowFromPoint(e.clientX, e.clientY);
+  _menuClearOverHighlights();
+  if (!row) { _menuDragOverIdx = null; return; }
+  const idx = parseInt(row.dataset.idx, 10);
+  if (idx === _menuDragIdx) { _menuDragOverIdx = null; return; }
+  row.classList.add('drag-over');
+  _menuDragOverIdx = idx;
 }
-function menuDrop(e, toIdx) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('drag-over');
-  if (_menuDragIdx === null || _menuDragIdx === toIdx) return;
-  const moved = state.menu.splice(_menuDragIdx, 1)[0];
-  state.menu.splice(toIdx, 0, moved);
-  _menuDragIdx = null;
+
+function _menuPointerUp() {
+  document.removeEventListener('pointermove', _menuPointerMove);
+  document.removeEventListener('pointerup', _menuPointerUp);
+  document.removeEventListener('pointercancel', _menuPointerUp);
+  if (_menuDragRow) _menuDragRow.classList.remove('dragging');
+  _menuClearOverHighlights();
+  const from = _menuDragIdx, to = _menuDragOverIdx;
+  _menuDragIdx = null; _menuDragRow = null; _menuDragOverIdx = null;
+  if (from === null || to === null || from === to) return;
+  const moved = state.menu.splice(from, 1)[0];
+  state.menu.splice(to, 0, moved);
   broadcast();
   renderMenuGrid();
   renderMenuEditor();
   renderRecipes();
 }
-function menuDragEnd(e) {
-  e.currentTarget.classList.remove('dragging');
-  _menuDragIdx = null;
-  document.querySelectorAll('.menu-drag-row').forEach(r => r.classList.remove('drag-over'));
+
+function menuDragStart(e, i) {
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const row = handle.closest('.menu-drag-row');
+  if (!row) return;
+  _menuDragIdx = i;
+  _menuDragRow = row;
+  _menuDragOverIdx = null;
+  row.classList.add('dragging');
+  document.addEventListener('pointermove', _menuPointerMove);
+  document.addEventListener('pointerup', _menuPointerUp);
+  document.addEventListener('pointercancel', _menuPointerUp);
 }
 
 function renderMenuEditor() {
@@ -2800,13 +2824,9 @@ function renderMenuEditor() {
     const autoBtn = hasCustom
       ? `<button class="emoji-opt emoji-auto-btn" onmousedown="event.stopPropagation();event.preventDefault();clearEmoji(${i},event)" title="恢復自動偵測" style="font-size:0.65rem;padding:2px 5px">↺</button>`
       : '';
-    return `<div class="menu-drag-row" draggable="true" data-idx="${i}"
-        ondragstart="menuDragStart(event,${i})"
-        ondragover="menuDragOver(event)"
-        ondragleave="menuDragLeave(event)"
-        ondrop="menuDrop(event,${i})"
-        ondragend="menuDragEnd(event)">
-      <span class="drag-handle" title="拖曳排序">⠿</span>
+    return `<div class="menu-drag-row" data-idx="${i}">
+      <span class="drag-handle" title="拖曳排序"
+        onpointerdown="menuDragStart(event,${i})">⠿</span>
       <div class="emoji-picker-wrap" style="display:flex;gap:3px">
         <button class="emoji-pick-btn" onclick="toggleEmojiPicker(${i},event)" title="選擇 Emoji">${curEmoji}</button>
         ${autoBtn}

@@ -3697,6 +3697,11 @@ renderPOS();
 setLbScope('today');
 // 自動換日已停用，改為手動存入
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAnn(); document.getElementById('changelogModal').classList.remove('open'); } });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    window.parent.postMessage({ action: 'close-from-iframe' }, '*');
+  }
+});
 </script>
 </body>
 </html>

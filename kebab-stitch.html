@@ -1752,7 +1752,11 @@ function subscribeDB() {
     const d = snap.val();
     if (d) {
       const _localMenuBackup = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
-      const _toArr = m => !m ? null : Array.isArray(m) ? m : Object.values(m);
+      const _toArr = m => {
+        if (!m) return null;
+        const a = Array.isArray(m) ? m : Object.values(m);
+        return a.length > 0 ? a : null;
+      };
       const _fbMenu = _toArr(d.menu) || _toArr(d.menuDefault);
       if (_fbMenu && _fbMenu.length > 0) { state.menu = _fbMenu; menuReady = true; }
       else if (!menuReady) state.menu = state.menu || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));

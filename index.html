@@ -1665,7 +1665,11 @@ function subscribeDB() {
     const d = snap.val();
     if (d) {
       const _localMenuBackup = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
-      const _toArr = m => !m ? null : Array.isArray(m) ? m : Object.values(m);
+      const _toArr = m => {
+        if (!m) return null;
+        const a = Array.isArray(m) ? m : Object.values(m);
+        return a.length > 0 ? a : null;
+      };
       const _fbMenu = _toArr(d.menu) || _toArr(d.menuDefault);
       if (_fbMenu && _fbMenu.length > 0) { state.menu = _fbMenu; menuReady = true; }
       else if (!menuReady) state.menu = state.menu || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
@@ -2759,7 +2763,11 @@ async function restoreDefaultMenu() {
     }, () => res(null));
   });
   const fromLocal = (() => { try { const r = localStorage.getItem('gem_defaultMenu'); return r ? JSON.parse(r) : null; } catch(e) { return null; } })();
-  const _toArr = m => !m ? null : Array.isArray(m) ? m : Object.values(m);
+  const _toArr = m => {
+    if (!m) return null;
+    const a = Array.isArray(m) ? m : Object.values(m);
+    return a.length > 0 ? a : null;
+  };
   let backup = _toArr(fromFirebase) || _toArr(fromLocal);
   let source = fromFirebase ? 'Firebase 備份' : (fromLocal ? '本機備份' : null);
   if (!backup || !backup.length) {

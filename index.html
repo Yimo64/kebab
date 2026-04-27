@@ -1551,17 +1551,17 @@ function localDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-// 營業日：20:00 – 隔天 04:00；04:00–20:00 為換日空窗期（回傳 null）
+// 暫時：每日 07:25 換日（07:25 之前算前一天）
 function getGameDay() {
   const now = new Date();
-  const h = now.getHours();
-  if (h < 4) {
+  const cutoff = new Date(now);
+  cutoff.setHours(7, 25, 0, 0);
+  if (now < cutoff) {
     const d = new Date(now);
     d.setDate(d.getDate() - 1);
     return localDateStr(d);
   }
-  if (h >= 20) return localDateStr(now);
-  return null; // 04:00–20:00 換日空窗期
+  return localDateStr(now);
 }
 
 // ════════════════════════════════════════

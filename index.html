@@ -1555,7 +1555,7 @@ function localDateStr(d) {
 function getGameDay() {
   const now = new Date();
   const cutoff = new Date(now);
-  cutoff.setHours(7, 25, 0, 0);
+  cutoff.setHours(7, 35, 0, 0);
   if (now < cutoff) {
     const d = new Date(now);
     d.setDate(d.getDate() - 1);

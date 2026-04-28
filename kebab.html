@@ -513,14 +513,6 @@ sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 .restock-total span:last-child { color: var(--red); }
 .btn-restock { width: 100%; padding: 9px; margin-top: 8px; border-radius: 7px; border: none; background: linear-gradient(135deg, #1a5fa8, #13487f); color: #fff; cursor: pointer; font-size: 0.84rem; font-weight: 700; font-family: inherit; }
 .btn-restock:hover { background: linear-gradient(135deg, #1d6fc4, #1a5fa8); }
-.recipe-card { margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-.recipe-card:last-child { border-bottom: none; }
-.recipe-card .rc-name { font-size: 0.82rem; font-weight: 600; color: var(--text); margin-bottom: 5px; }
-.rc-ings { display: flex; flex-wrap: wrap; gap: 5px; }
-.rc-ing-tag { background: var(--border-hi); border-radius: 20px; padding: 2px 9px; font-size: 0.7rem; color: var(--muted); }
-.recipe-edit-row { display: flex; gap: 5px; margin-top: 7px; align-items: center; }
-.recipe-edit-row select { flex: 1; font-size: 0.78rem; padding: 4px 7px; }
-.recipe-edit-row input { width: 52px; font-size: 0.78rem; padding: 4px 5px; }
 
 /* ── MISC ── */
 @media (max-width: 880px) {
@@ -1309,7 +1301,7 @@ emoji-picker {
 
   </div>
 
-  <!-- 菜單 + 食材 + 食譜（店長 + 管理員） -->
+  <!-- 菜單 + 食材（店長 + 管理員） -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0">
     <div class="card">
       <div class="sec-title">菜單品項設定</div>
@@ -1318,6 +1310,8 @@ emoji-picker {
         <button class="btn-small btn-green" onclick="addMenuRow()">＋ 新增品項</button>
         <button class="btn-small" style="background:rgba(74,158,255,0.12);border:1px solid rgba(74,158,255,0.4);color:var(--blue)" onclick="updateDefaultMenu()">📌 更新為默認菜單</button>
         <button class="btn-small" style="background:rgba(232,145,58,0.12);border:1px solid rgba(232,145,58,0.4);color:var(--primary)" onclick="restoreDefaultMenu()">↩ 還原默認菜單</button>
+        <button class="btn-small" style="background:rgba(61,186,110,0.12);border:1px solid rgba(61,186,110,0.4);color:var(--green)" onclick="exportMenuCSV()">📤 匯出 CSV</button>
+        <button class="btn-small" style="background:rgba(61,186,110,0.12);border:1px solid rgba(61,186,110,0.4);color:var(--green)" onclick="importMenuCSV()">📥 匯入 CSV</button>
       </div>
     </div>
     <div class="card">
@@ -1332,13 +1326,9 @@ emoji-picker {
         <button class="btn-small btn-green" onclick="addIngredient()">新增</button>
       </div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <button class="btn-small" style="background:transparent;border:1px solid #555;color:#8b949e;font-size:0.75rem" onclick="resetIngredients()">↺ 重置食材與食譜到預設值</button>
+        <button class="btn-small" style="background:transparent;border:1px solid #555;color:#8b949e;font-size:0.75rem" onclick="resetIngredients()">↺ 重置食材到預設值</button>
       </div>
     </div>
-  </div>
-  <div class="card" style="margin-top:16px">
-    <div class="sec-title">食譜設定（每品項用料）</div>
-    <div id="recipeList"></div>
   </div>
 </div>
 
@@ -1527,21 +1517,6 @@ const DEFAULT_INGREDIENTS = [
   // 飲料不追蹤存貨（移除）
 ];
 
-// 肉串 1 串切 4 份 → 每份 0.25；薯條 1 份炸 5 份 → 每份 0.2
-// 菜/醬料份量待確認，先設 1
-const SHAWARMA_FILLINGS = [
-  { id:'lettuce', amount:1 }, { id:'corn',   amount:1 }, { id:'tomato', amount:1 },
-  { id:'onion',  amount:1 }, { id:'pickle', amount:1 },
-  { id:'yogurt', amount:1 }, { id:'hot',    amount:1 },
-];
-const DEFAULT_RECIPES = {
-  'PITA餅沙威瑪':  [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, ...SHAWARMA_FILLINGS],
-  '沙威瑪捲餅':    [{ id:'wrap', amount:1 }, { id:'meat', amount:0.25 }, ...SHAWARMA_FILLINGS],
-  '炸薯條':        [{ id:'fries', amount:0.25 }],
-  '炸鷹嘴豆餅':    [{ id:'falafel', amount:0.25 }],
-  '套餐':         [{ id:'pita', amount:1 }, { id:'meat', amount:0.25 }, { id:'fries', amount:0.25 }, ...SHAWARMA_FILLINGS],
-};
-
 // ════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════
@@ -1658,7 +1633,7 @@ function subscribeDB() {
     renderAccounting(); renderStats();
   }, e => { console.error('[FB] comps error:', e); setSyncStatus('error'); });
 
-  // 設定（菜單/食材/食譜/管理員）
+  // 設定（菜單/食材/管理員）
   R.config().on('value', snap => {
     const d = snap.val();
     if (d) {
@@ -1672,7 +1647,6 @@ function subscribeDB() {
       if (_fbMenu && _fbMenu.length > 0) { state.menu = _fbMenu; menuReady = true; }
       else if (!menuReady) state.menu = state.menu || _localMenuBackup || JSON.parse(JSON.stringify(DEFAULT_MENU));
       state.ingredients = d.ingredients || state.ingredients || JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
-      state.recipes     = d.recipes     || state.recipes     || JSON.parse(JSON.stringify(DEFAULT_RECIPES));
       state.admins      = d.admins      || state.admins;
       state.admins['326257870377320450'] = true;
       state.admins['163128886782197761'] = true;
@@ -1788,7 +1762,7 @@ function saveConfig() {
   }).catch(fbErr);
 }
 
-// saveInventory：只寫食材庫存，不碰菜單／食譜（給扣庫存用）
+// saveInventory：只寫食材庫存，不碰菜單
 function saveInventory() {
   if (!configReady) return;
   cacheLocal();
@@ -1797,15 +1771,13 @@ function saveInventory() {
   }).catch(fbErr);
 }
 
-// saveMenu：只在明確編輯菜單/食材/食譜時才呼叫
+// saveMenu：只在明確編輯菜單時才呼叫
 function saveMenu() {
   if (!configReady || !menuReady) return;
   if (!state.menu || state.menu.length === 0) return;
   cacheLocal();
   if (db) R.config().update({
     menu: state.menu,
-    ingredients: state.ingredients,
-    recipes: state.recipes,
   }).catch(fbErr);
 }
 
@@ -2101,7 +2073,7 @@ function saveHistoryDay(day) {
 }
 function fbErr(e) { setSyncStatus('error'); console.error(e); }
 
-// broadcast → 只寫菜單/食材/食譜，不寫管理設定
+// broadcast → 只寫菜單，不寫管理設定
 function broadcast() { saveMenu(); }
 
 // ════════════════════════════════════════
@@ -2132,7 +2104,6 @@ function loadState() {
     customers: {},
     menu:        JSON.parse(JSON.stringify(DEFAULT_MENU)),
     ingredients: JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS)),
-    recipes:     JSON.parse(JSON.stringify(DEFAULT_RECIPES)),
   };
 }
 
@@ -2243,7 +2214,6 @@ function switchTab(id) {
   document.getElementById('tab-' + id).classList.add('active');
   event.currentTarget.classList.add('active');
   renderAll();
-  if (id === 'settings') renderRecipes();
 }
 
 // ════════════════════════════════════════
@@ -2760,6 +2730,85 @@ async function updateDefaultMenu() {
   uiAlert('✅ 已更新為默認菜單');
 }
 
+function exportMenuCSV() {
+  if (!Array.isArray(state.menu) || !state.menu.length) { uiAlert('菜單是空的'); return; }
+  const esc = v => {
+    const s = String(v ?? '');
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [['name', 'price', 'emoji']];
+  state.menu.forEach(it => rows.push([it.name || '', it.price ?? 0, it.emoji || '']));
+  const csv = '﻿' + rows.map(r => r.map(esc).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `menu_${localDateStr(new Date())}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function _parseMenuCSV(text) {
+  text = text.replace(/^﻿/, '');
+  const rows = []; let cur = [], field = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') q = false;
+      else field += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === ',') { cur.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i+1] === '\n') i++;
+        cur.push(field); rows.push(cur); cur = []; field = '';
+      } else field += c;
+    }
+  }
+  if (field !== '' || cur.length > 0) { cur.push(field); rows.push(cur); }
+  return rows.filter(r => r.some(c => String(c).trim() !== ''));
+}
+
+function importMenuCSV() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,text/csv';
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const rows = _parseMenuCSV(text);
+    if (rows.length < 2) { uiAlert('CSV 沒有資料列'); return; }
+    const header = rows[0].map(h => String(h).trim().toLowerCase());
+    const ni = header.indexOf('name');
+    const pi = header.indexOf('price');
+    const ei = header.indexOf('emoji');
+    if (ni < 0 || pi < 0) { uiAlert('CSV 標頭至少需要 name, price 兩欄'); return; }
+    const items = [];
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const name = String(row[ni] ?? '').trim();
+      const price = parseInt(row[pi]) || 0;
+      const emoji = ei >= 0 ? String(row[ei] ?? '').trim() : '';
+      if (!name) continue;
+      const item = { name, price };
+      if (emoji) item.emoji = emoji;
+      items.push(item);
+    }
+    if (!items.length) { uiAlert('沒有有效的品項'); return; }
+    const ok = await uiConfirm(`匯入 ${items.length} 個品項，目前 ${state.menu.length} 個會被覆蓋。確定？`);
+    if (!ok) return;
+    state.menu = items;
+    menuReady = true;
+    saveMenu();
+    renderMenuGrid();
+    renderMenuEditor();
+    uiAlert(`✅ 已匯入 ${items.length} 個品項`);
+  };
+  input.click();
+}
+
 async function restoreDefaultMenu() {
   // 優先順序：Firebase menuDefault → localStorage gem_defaultMenu → 程式碼內建 DEFAULT_MENU
   const fromFirebase = await new Promise(res => {
@@ -2831,7 +2880,6 @@ function _menuPointerUp() {
   broadcast();
   renderMenuGrid();
   renderMenuEditor();
-  renderRecipes();
 }
 
 function menuDragStart(e, i) {
@@ -2864,7 +2912,7 @@ function renderMenuEditor() {
         <button class="emoji-pick-btn" onclick="toggleEmojiPicker(${i},event)" title="選擇 Emoji">${curEmoji}</button>
         ${autoBtn}
       </div>
-      <input type="text" value="${item.name}" style="flex:2" onchange="state.menu[${i}].name=this.value;broadcast();renderMenuGrid();renderRecipes()">
+      <input type="text" value="${item.name}" style="flex:2" onchange="state.menu[${i}].name=this.value;broadcast();renderMenuGrid()">
       <input type="number" value="${item.price}" style="width:80px" onchange="state.menu[${i}].price=parseInt(this.value)||0;broadcast();renderMenuGrid()">
       <button onclick="deleteMenuItem(${i})" style="background:transparent;border:none;color:#555;cursor:pointer;font-size:1rem">✕</button>
     </div>`;
@@ -2876,7 +2924,6 @@ function deleteMenuItem(i) {
   broadcast();
   renderMenuGrid();
   renderMenuEditor();
-  renderRecipes();
 }
 
 function addMenuRow() {
@@ -2885,7 +2932,6 @@ function addMenuRow() {
   broadcast();
   renderMenuGrid();
   renderMenuEditor();
-  renderRecipes();
   const inputs = document.querySelectorAll('#menuEditor .menu-drag-row input[type=text]');
   if (inputs.length) { const last = inputs[inputs.length - 1]; last.focus(); last.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 }
@@ -3006,10 +3052,6 @@ function moveOrder(id, newStatus) {
   const old = o.status;
   o.status = newStatus;
 
-  if (old !== 'preparing' && newStatus === 'preparing') {
-    deductInventory(o);
-    saveInventory(); // 只寫食材庫存，避免覆蓋菜單
-  }
   if (newStatus === 'done' && old !== 'done') {
     o.completedAt = Date.now();
     const copy = { ...o };
@@ -3507,17 +3549,6 @@ async function deleteHistory(i) {
 // INVENTORY
 // ════════════════════════════════════════
 
-function deductInventory(order) {
-  order.items.forEach(item => {
-    const recipe = state.recipes[item.name];
-    if (!recipe) return;
-    recipe.forEach(r => {
-      const ing = state.ingredients.find(i => i.id === r.id);
-      if (ing) ing.stock = Math.max(0, ing.stock - r.amount * item.qty);
-    });
-  });
-}
-
 function renderInventory() {
   const lowItems = state.ingredients.filter(i => i.stock < i.minStock);
   const alertBox = document.getElementById('restockAlertBox');
@@ -3563,18 +3594,13 @@ function renderInventory() {
 
 function updateIng(i, field, val) {
   state.ingredients[i][field] = parseFloat(val) || 0;
-  broadcast();
+  saveInventory();
   renderInventory();
 }
 
 function deleteIng(i) {
-  const id = state.ingredients[i].id;
   state.ingredients.splice(i, 1);
-  // remove from recipes
-  Object.keys(state.recipes).forEach(k => {
-    state.recipes[k] = state.recipes[k].filter(r => r.id !== id);
-  });
-  broadcast();
+  saveInventory();
   renderInventory();
 }
 
@@ -3589,7 +3615,7 @@ function addIngredient() {
   const id = 'ing_' + Date.now();
   state.ingredients.push({ id, name, unit, stock, minStock, restockQty, unitCost });
   ['newIngName','newIngUnit','newIngStock','newIngMin','newIngQty','newIngCost'].forEach(id => document.getElementById(id).value = '');
-  broadcast();
+  saveInventory();
   renderInventory();
 }
 
@@ -3597,67 +3623,15 @@ function restockAll() {
   state.ingredients.forEach(i => {
     if (i.stock < i.minStock) i.stock += i.restockQty;
   });
-  broadcast();
+  saveInventory();
   renderInventory();
-}
-
-function renderRecipes() {
-  const ingOptions = state.ingredients.map(i =>
-    `<option value="${i.id}">${i.name}</option>`
-  ).join('');
-
-  document.getElementById('recipeList').innerHTML = state.menu.map((item, idx) => {
-    const recipe = state.recipes[item.name] || [];
-    const tags = recipe.map((r, ri) => {
-      const ing = state.ingredients.find(i => i.id === r.id);
-      return `<span class="rc-ing-tag" style="cursor:pointer" onclick="removeRecipeIng('${item.name}',${ri})" title="點擊移除">
-        ${ing ? ing.name : r.id} ×${r.amount} ✕</span>`;
-    }).join('');
-    return `<div class="recipe-card">
-      <div class="rc-name">${item.name}</div>
-      <div class="rc-ings" style="margin-bottom:6px">${tags || '<span style="color:#555;font-size:0.72rem">尚未設定食材</span>'}</div>
-      <div class="recipe-edit-row">
-        <select id="rs-ing-${idx}">${ingOptions}</select>
-        <input type="number" id="rs-amt-${idx}" value="1" min="0.01" step="0.01" style="width:60px" placeholder="份量">
-        <button class="btn-small btn-green" onclick="addRecipeIng('${item.name}',${idx})">＋加入</button>
-        <button class="btn-small" style="background:transparent;border:1px solid #444;color:#666" onclick="clearRecipe('${item.name}')">清空</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function addRecipeIng(menuName, idx) {
-  const sel = document.getElementById('rs-ing-' + idx);
-  const amt = parseFloat(document.getElementById('rs-amt-' + idx).value);
-  if (!sel || !amt || amt <= 0) return;
-  const ingId = sel.value;
-  if (!state.recipes[menuName]) state.recipes[menuName] = [];
-  const ex = state.recipes[menuName].find(r => r.id === ingId);
-  if (ex) ex.amount = Math.round((ex.amount + amt) * 1000) / 1000;
-  else state.recipes[menuName].push({ id: ingId, amount: amt });
-  broadcast();
-  renderRecipes();
-}
-
-function removeRecipeIng(menuName, ri) {
-  if (!state.recipes[menuName]) return;
-  state.recipes[menuName].splice(ri, 1);
-  broadcast();
-  renderRecipes();
 }
 
 async function resetIngredients() {
-  if (!await uiConfirm('確定重置所有食材和食譜到預設值？（庫存數量也會重置）')) return;
+  if (!await uiConfirm('確定重置所有食材到預設值？（庫存數量也會重置）')) return;
   state.ingredients = JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
-  state.recipes = JSON.parse(JSON.stringify(DEFAULT_RECIPES));
-  broadcast();
+  saveInventory();
   renderInventory();
-}
-
-function clearRecipe(menuName) {
-  state.recipes[menuName] = [];
-  broadcast();
-  renderRecipes();
 }
 
 // ════════════════════════════════════════

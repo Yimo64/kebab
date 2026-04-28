@@ -1551,17 +1551,15 @@ function localDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-// 營業日：20:00 – 隔天 04:00；04:00–20:00 為換日空窗期（回傳 null）
+// 每日 04:00 換日（04:00 之前算前一天）
 function getGameDay() {
   const now = new Date();
-  const h = now.getHours();
-  if (h < 4) {
+  if (now.getHours() < 4) {
     const d = new Date(now);
     d.setDate(d.getDate() - 1);
     return localDateStr(d);
   }
-  if (h >= 20) return localDateStr(now);
-  return null; // 04:00–20:00 換日空窗期
+  return localDateStr(now);
 }
 
 // ════════════════════════════════════════
@@ -1787,6 +1785,15 @@ function saveConfig() {
     admins: state.admins,
     managers: state.managers || {},
     lastResetDate: state.lastResetDate,
+  }).catch(fbErr);
+}
+
+// saveInventory：只寫食材庫存，不碰菜單／食譜（給扣庫存用）
+function saveInventory() {
+  if (!configReady) return;
+  cacheLocal();
+  if (db) R.config().update({
+    ingredients: state.ingredients,
   }).catch(fbErr);
 }
 
@@ -3001,7 +3008,7 @@ function moveOrder(id, newStatus) {
 
   if (old !== 'preparing' && newStatus === 'preparing') {
     deductInventory(o);
-    saveMenu(); // 食材庫存變動
+    saveInventory(); // 只寫食材庫存，避免覆蓋菜單
   }
   if (newStatus === 'done' && old !== 'done') {
     o.completedAt = Date.now();
@@ -3043,25 +3050,19 @@ function renderAccounting() {
   initManualRecordForm();
 
   // ── 時間／換日邏輯 ───────────────────────────────
-  // 規則：
-  //  (1) 過了 04:00（前一個營業日的自然結束點）後，若 lastResetDate 比日曆今天早：
-  //      • 沒有未存入的訂單 → 自動把 lastResetDate 推進到日曆今天（「自動換日」）
-  //      • 有未存入的訂單 → 跳警示，要使用者先按「📥 存入日期記錄」
-  //  (2) 04:00 之前不動作（夜班還在前一個營業日範圍內）
-  const _now = new Date();
-  const _h = _now.getHours();
-  const _todayCal = localDateStr(_now);
+  // 規則：getGameDay() 04:00 換日。lastResetDate 比 gameDay 早時：
+  //   • 沒有未存入的訂單 → 自動推進 lastResetDate
+  //   • 有未存入的訂單 → 跳警示，要使用者先按「📥 存入日期記錄」
+  const _today = getGameDay();
   const _hasUnsaved = state.completed.length > 0;
-  const _shouldHaveSettled = _h >= 4 && state.lastResetDate && state.lastResetDate < _todayCal;
-  if (_shouldHaveSettled && !_hasUnsaved && state.lastResetDate !== _todayCal) {
-    state.lastResetDate = _todayCal;
+  const _shouldHaveSettled = state.lastResetDate && state.lastResetDate < _today;
+  if (_shouldHaveSettled && !_hasUnsaved) {
+    state.lastResetDate = _today;
     saveConfig();
   }
   const _staleWarn = _shouldHaveSettled && _hasUnsaved;
 
   // 今日標題 + 日期選擇
-  const _today = getGameDay();
-  const _isDeadZone = _today === null;
   const _todayBiz = state.lastResetDate || _today || '';
   const _displayDate = accViewingDate || _todayBiz || '';
   const _isViewingToday = !accViewingDate || accViewingDate === _todayBiz;
@@ -3085,10 +3086,7 @@ function renderAccounting() {
   if (_warn) {
     if (_staleWarn && _isViewingToday) {
       _warn.style.display = 'flex';
-      _warn.innerHTML = `<span style="color:var(--primary)">⚠ 上個營業日（<b>${state.lastResetDate}</b>）尚未存入。今天是 <b>${_todayCal}</b>，請按右側「📥 存入日期記錄」結算。</span>`;
-    } else if (_isDeadZone && _isViewingToday) {
-      _warn.style.display = 'flex';
-      _warn.innerHTML = `<span style="color:var(--muted)">⏳ 換日空窗期（04:00 – 20:00），下一個營業日將於 20:00 開始</span>`;
+      _warn.innerHTML = `<span style="color:var(--primary)">⚠ 上個營業日（<b>${state.lastResetDate}</b>）尚未存入。今天是 <b>${_today}</b>，請按右側「📥 存入日期記錄」結算。</span>`;
     } else if (!_isViewingToday) {
       _warn.style.display = 'flex';
       _warn.innerHTML = `<span style="color:var(--muted)">📜 檢視歷史日期 <b>${accViewingDate}</b>（唯讀）。<a href="#" onclick="event.preventDefault();accViewingDate=null;renderAccounting()" style="color:var(--primary);margin-left:8px">← 回到今日</a></span>`;
@@ -3733,7 +3731,7 @@ function renderAll() {
 
 // Firebase 初始化
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD6m1-7q5b0zJiBJWb08OhYlraMhs4lSyM",
+  apiKey: "AIzaSyAFMzJHUM12ua6PVXVw09hoS_qI7nI9kIs",
   authDomain: "kebab-my.firebaseapp.com",
   databaseURL: "https://kebab-my-default-rtdb.firebaseio.com",
   projectId: "kebab-my",

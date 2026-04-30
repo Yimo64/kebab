@@ -577,12 +577,12 @@ sep { display: block; border-top: 1px solid var(--border); margin: 10px 0; }
 }
 .pos-banner-pill.muted:hover { color: var(--text); border-color: var(--primary); }
 .pos-banner-content {
-  flex: 1; padding: 9px 16px; border-radius: 22px;
+  flex: 1; padding: 9px 16px; border-radius: 18px;
   background: rgba(240,146,58,0.06);
   border: 1px solid rgba(240,146,58,0.22);
-  font-size: 0.78rem; color: var(--text-soft);
-  display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap; min-width: 0;
+  font-size: 0.78rem; color: var(--text-soft); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; min-width: 0; word-break: break-word;
 }
 .pos-banner-head {
   display: none;
@@ -1091,7 +1091,7 @@ emoji-picker {
       <div class="card" style="overflow-x:auto;padding:0">
         <table class="acc-table">
           <thead>
-            <tr><th>訂單號</th><th>時間</th><th>員工</th><th>客人</th><th>品項</th><th>金額</th><th>狀態</th></tr>
+            <tr><th>員工</th><th>時間</th><th>訂單號</th><th>客人</th><th>品項</th><th>金額</th><th>狀態</th></tr>
           </thead>
           <tbody id="accBody"></tbody>
         </table>
@@ -1874,7 +1874,7 @@ function renderPosBanner() {
 
   // 藥丸列：橙色「公告·N則」按鈕 + 首則公告預覽
   const first = anns[0];
-  const previewText = first ? `${first.pinned?'📌 ':''}${first.title}${first.content?` ${first.content.slice(0, 60)}`:''}` : '';
+  const previewText = first ? `${first.pinned?'📌 ':''}${first.title}${first.content?` ${first.content.slice(0, 300)}`:''}` : '';
 
   el.innerHTML = `
     <div class="pos-banner-wrap">
@@ -3138,9 +3138,9 @@ function renderAccounting() {
     const t = new Date(o.completedAt || o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     const items = o.items.map(i => `${i.name}×${i.qty}`).join('、');
     return `<tr>
-      <td class="td-gold" style="font-family:'Space Grotesk',monospace;font-weight:700">#${o.id}</td>
-      <td class="td-muted">${t}</td>
       <td>${o.createdBy || '—'}</td>
+      <td class="td-muted">${t}</td>
+      <td class="td-gold" style="font-family:'Space Grotesk',monospace;font-weight:700">#${o.id}</td>
       <td ${o.unbilled ? 'style="color:#e84040;font-weight:700"' : ''}>${o.customer || '—'}</td>
       <td style="white-space:normal;max-width:280px">${items}</td>
       <td class="td-gold" style="font-family:'Space Grotesk',sans-serif">$${o.total}</td>
@@ -3309,12 +3309,12 @@ function renderAccounting() {
         const t = new Date(o.completedAt || o.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
         const items = o.items.map(it => `${it.name}×${it.qty}`).join('、');
         return `<tr style="${o.unbilled ? 'background:rgba(232,64,64,0.06)' : ''}">
-          <td class="td-gold">${o.id}</td>
+          <td class="td-muted">${o.createdBy||'—'}</td>
           <td ${o.unbilled ? 'style="color:#e84040;font-weight:700"' : ''}>${o.customer||'—'}</td>
           <td class="td-muted" style="font-family:monospace;font-size:0.7rem">${o.customerCid||'—'}</td>
           <td>${items}</td>
           <td class="td-muted">${o.note||'—'}</td>
-          <td class="td-muted">${o.createdBy||'—'}</td>
+          <td class="td-gold">${o.id}</td>
           <td class="td-gold">$${o.total}</td>
           <td class="td-muted">${t}</td>
         </tr>`;
@@ -3356,7 +3356,7 @@ function renderAccounting() {
           ${day.topItems && day.topItems.length ? `<div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">熱賣：${day.topItems.map(([n,q])=>`${n}×${q}`).join('　')}</div>` : ''}
           <div style="overflow-x:auto">
             <table class="acc-table">
-              <thead><tr><th>#</th><th>客人</th><th>CID</th><th>品項</th><th>備注</th><th>開單人</th><th>金額</th><th>時間</th></tr></thead>
+              <thead><tr><th>開單人</th><th>客人</th><th>CID</th><th>品項</th><th>備注</th><th>#</th><th>金額</th><th>時間</th></tr></thead>
               <tbody>${detailRows}</tbody>
             </table>
           </div>
